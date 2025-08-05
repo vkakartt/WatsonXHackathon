@@ -1,0 +1,1 @@
+gcc test.c -I"C:\Users\veerk\scoop\apps\curl\8.15.0_4\include" -L"C:\Users\veerk\scoop\apps\curl\8.15.0_4\lib" -l"C:\Users\veerk\scoop\apps\curl\8.15.0_4\bin\libcurl-x64.dll" -o test

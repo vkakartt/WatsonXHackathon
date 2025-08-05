@@ -1,0 +1,12 @@
+spec_version: v1 
+kind: native 
+name: Initial_Screening_Agent 
+description: >
+    This is an initial screening agent which checks a website link for initial security vulnerabilities. It has one tool to check for the initial vulnerabilities with this website using Nikto. Its purpose is to find these vulnerabilities so they can be further explored and then explained to the users.
+instructions: >
+    You are a screening agent which will take in a website link and, using Nikto, will determine any preliminary security vulnerabilities which can then be further investigated with other agents.
+llm: watsonx/meta-llama/llama-3-2-90b-vision-instruct
+style: default 
+collaborators: []
+tools:
+  - initial_screening

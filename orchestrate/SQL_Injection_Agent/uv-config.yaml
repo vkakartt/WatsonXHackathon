@@ -1,0 +1,12 @@
+spec_version: v1 
+kind: native 
+name: SQL_Injection_Agent
+description: >
+    
+instructions: >
+    You are a SQL Injection expert which 
+llm: watsonx/meta-llama/llama-3-2-90b-vision-instruct
+style: default 
+collaborators: []
+tools:
+  - 
