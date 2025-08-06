@@ -302,5 +302,3 @@ def sql_injection_test(target_url: str) -> str:
     else:
         discovery.result += "\n[-] No SQL injection vulnerabilities found)"
     return discovery.result
-
-print(sql_injection_test("https://www.transformatech.com"))

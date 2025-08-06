@@ -13,7 +13,7 @@ function App() {
 function Login() {
   return (
     <>
-      <form name="loginForm" action="http://localhost:8000/login" method="post" id="loginform">
+      <form name="loginForm" action="https://kxhmqxrn-8000.use.devtunnels.ms/login" method="post" id="loginform">
         <input type="text" name="username" placeholder="Username..." />
         <input type="password" name="password" placeholder="Password..." />
         <button type="submit">Login</button>
