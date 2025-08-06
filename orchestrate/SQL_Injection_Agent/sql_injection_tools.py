@@ -4,8 +4,6 @@ import re
 from bs4 import BeautifulSoup
 from urllib.parse import urljoin, urlparse
 import subprocess
-import sys
-import json
 from ibm_watsonx_orchestrate.agent_builder.tools import tool, ToolPermission
 
 class StaticBackendDiscovery:
@@ -279,7 +277,7 @@ class StaticBackendDiscovery:
         
         return unique_endpoints, []
 
-@tool(name="sql_injection", description="Runs Nikto to determine any initial security vulnerabilities with the given website.", permission=ToolPermission.ADMIN)
+@tool(name="sql_injection", description="Finds all api endpoints in a website and checks if they are susceptible to sql injection.", permission=ToolPermission.ADMIN)
 def sql_injection_test(target_url: str) -> str:   
     discovery = StaticBackendDiscovery()
     endpoints, vulnerable = discovery.full_discovery(target_url, test_vulnerabilities=True)
