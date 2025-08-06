@@ -11,7 +11,7 @@ from typing import List, Dict, Optional
 import tempfile
 
 class FastVulnScanner:
-    def __init__(self, zap_port=8090, api_key=""):
+    def __init__(self, zap_port=8090, api_key="12345"):
         self.zap_port = zap_port
         self.api_key = api_key
         self.zap_api_url = f"http://127.0.0.1:{zap_port}"
@@ -20,7 +20,7 @@ class FastVulnScanner:
 
     def is_zap_running(self):
         try:
-            response = requests.get(f"{self.zap_api_url}/JSON/core/view/version/", timeout=2)
+            response = requests.get(f"{self.zap_api_url}/JSON/core/view/version/?apikey={self.api_key}", timeout=2)
             return response.status_code == 200
         except:
             return False
@@ -42,6 +42,8 @@ class FastVulnScanner:
                 pass
 
             # Start ZAP with speed-optimized settings
+            os.chdir(os.path.join(base_dir, "ZAP_2.16.1"))
+            print(os.getcwd())
             self.zap_process = subprocess.Popen([
                 zap_path,
                 "-daemon",
@@ -52,7 +54,7 @@ class FastVulnScanner:
                 "-config",
                 "api=12345"
             ], stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True)
-            
+            os.chdir(base_dir)
             # Wait for ZAP with shorter timeout
             for _ in range(30):  # 30 second timeout
                 if self.is_zap_running():
@@ -169,80 +171,15 @@ class FastVulnScanner:
         
         return results
 
-# Alternative tools for faster scanning
-class AlternativeScanner:
-    """Alternative fast vulnerability scanners"""
-    
-    @staticmethod
-    def run_nuclei(target_url: str, templates: List[str] = None):
-        """Use Nuclei for fast vulnerability scanning"""
-        if not templates:
-            templates = ['sqli', 'xss', 'lfi', 'rfi', 'xxe']
-        
-        cmd = [
-            'nuclei',
-            '-u', target_url,
-            '-t', ','.join([f'vulnerabilities/{t}' for t in templates]),
-            '-json',
-            '-timeout', '10',
-            '-retries', '1',
-            '-rate-limit', '50'
-        ]
-        
-        try:
-            result = subprocess.run(cmd, capture_output=True, text=True, timeout=60)
-            if result.returncode == 0:
-                results = []
-                for line in result.stdout.strip().split('\n'):
-                    if line:
-                        try:
-                            results.append(json.loads(line))
-                        except:
-                            pass
-                return results
-            else:
-                print(f"[!] Nuclei error: {result.stderr}")
-                return []
-        except subprocess.TimeoutExpired:
-            print("[!] Nuclei scan timed out")
-            return []
-        except FileNotFoundError:
-            print("[!] Nuclei not found. Install from: https://github.com/projectdiscovery/nuclei")
-            return []
-
-    @staticmethod
-    def run_sqlmap_quick(target_url: str):
-        """Quick SQLMap scan"""
-        cmd = [
-            'sqlmap',
-            '-u', target_url,
-            '--batch',
-            '--random-agent',
-            '--timeout=10',
-            '--retries=1',
-            '--threads=5',
-            '--technique=BEU',  # Boolean, Error, Union based
-            '--level=1',
-            '--risk=1',
-            '--format=JSON'
-        ]
-        
-        try:
-            result = subprocess.run(cmd, capture_output=True, text=True, timeout=120)
-            return result.stdout if result.returncode == 0 else None
-        except:
-            return None
-
 # Main scanning functions
 @tool(name="fast_vuln_scan", description="Fast comprehensive vulnerability scan", permission=ToolPermission.ADMIN)
-def fast_comprehensive_scan(target_url: str, scan_types: List[str] = None, use_alternatives: bool = True):
+def fast_comprehensive_scan(target_url: str, scan_types: List[str] = None):
     """
     Fast vulnerability scanner with multiple options
     
     Args:
         target_url: URL to scan
         scan_types: List of vulnerability types ['sql_injection', 'xss', 'lfi', 'rfi', 'xxe', 'csrf']
-        use_alternatives: Whether to use alternative tools like Nuclei
     """
     
     if not scan_types:
@@ -272,19 +209,6 @@ def fast_comprehensive_scan(target_url: str, scan_types: List[str] = None, use_a
         alerts = scanner.fast_active_scan(target_url, scan_types, max_time=45)
         results['zap_results'] = alerts
         
-        # Alternative tools if requested
-        if use_alternatives:
-            print("\n=== Alternative Tools ===")
-            
-            # Nuclei scan
-            nuclei_results = AlternativeScanner.run_nuclei(target_url, scan_types)
-            results['nuclei_results'] = nuclei_results
-            
-            # Quick SQLMap for SQL injection
-            if 'sql_injection' in scan_types:
-                sqlmap_results = AlternativeScanner.run_sqlmap_quick(target_url)
-                results['sqlmap_results'] = sqlmap_results
-        
         results['scan_time'] = time.time() - start_time
         
         # Summary
@@ -302,77 +226,4 @@ def fast_comprehensive_scan(target_url: str, scan_types: List[str] = None, use_a
         results['error'] = str(e)
         return results
 
-@tool(name="ultra_fast_scan", description="Ultra-fast 30-second vulnerability scan", permission=ToolPermission.ADMIN)
-def ultra_fast_scan(target_url: str):
-    """Ultra-fast scan in under 30 seconds"""
-    print("=== Ultra Fast Scan (30s max) ===")
-    
-    start_time = time.time()
-    results = []
-    
-    # Parallel execution of different scanners
-    def zap_quick():
-        try:
-            scanner = FastVulnScanner()
-            scanner.start_zap_fast()
-            return scanner.fast_active_scan(target_url, ['sql_injection', 'xss'], max_time=20)
-        except:
-            return []
-    
-    def nuclei_quick():
-        return AlternativeScanner.run_nuclei(target_url, ['sqli', 'xss'])
-    
-    with concurrent.futures.ThreadPoolExecutor(max_workers=2) as executor:
-        zap_future = executor.submit(zap_quick)
-        nuclei_future = executor.submit(nuclei_quick)
-        
-        # Get results with timeout
-        try:
-            zap_results = zap_future.result(timeout=25)
-            nuclei_results = nuclei_future.result(timeout=25)
-        except concurrent.futures.TimeoutError:
-            print("[!] Some scans timed out")
-            zap_results = []
-            nuclei_results = []
-    
-    total_time = time.time() - start_time
-    total_issues = len(zap_results) + len(nuclei_results or [])
-    
-    print(f"\n✅ Ultra-fast scan complete in {total_time:.1f}s")
-    print(f"Found {total_issues} potential issues")
-    
-    return {
-        'target': target_url,
-        'zap_results': zap_results,
-        'nuclei_results': nuclei_results,
-        'scan_time': total_time,
-        'total_issues': total_issues
-    }
-
-# Usage examples
-def main():
-    target = "https://www.transformatech.com"
-    
-    print("Choose scanning mode:")
-    print("1. Fast comprehensive scan (1-2 minutes)")
-    print("2. Ultra-fast scan (30 seconds)")
-    print("3. Custom scan types")
-    
-    choice = input("Enter choice (1-3): ").strip()
-    
-    if choice == "1":
-        results = fast_comprehensive_scan(target)
-    elif choice == "2":
-        results = ultra_fast_scan(target)
-    elif choice == "3":
-        scan_types = input("Enter scan types (comma-separated): ").split(',')
-        scan_types = [t.strip() for t in scan_types]
-        results = fast_comprehensive_scan(target, scan_types)
-    else:
-        print("Invalid choice")
-        return
-    
-    print(f"\nResults: {json.dumps(results, indent=2, default=str)}")
-
-if __name__ == "__main__":
-    main()
+print(fast_comprehensive_scan("https://www.transformatech.com", ['sql_injection', 'xss', 'lfi', 'rfi', 'xxe', 'csrf']))
