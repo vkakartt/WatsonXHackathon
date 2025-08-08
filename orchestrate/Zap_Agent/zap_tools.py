@@ -2,13 +2,10 @@ import subprocess
 import time
 import os
 import requests
-import threading
-import concurrent.futures
 from zapv2 import ZAPv2
 from ibm_watsonx_orchestrate.agent_builder.tools import tool, ToolPermission
-import json
-from typing import List, Dict, Optional
-import tempfile
+from typing import List
+import threading
 
 class FastVulnScanner:
     def __init__(self, zap_port=8090, api_key="12345"):
@@ -20,7 +17,7 @@ class FastVulnScanner:
 
     def is_zap_running(self):
         try:
-            response = requests.get(f"{self.zap_api_url}/JSON/core/view/version/?apikey={self.api_key}", timeout=2)
+            response = requests.get(f"{self.zap_api_url}/JSON/core/view/version/?apikey={self.api_key}", timeout=3)
             return response.status_code == 200
         except:
             return False
@@ -43,7 +40,6 @@ class FastVulnScanner:
 
             # Start ZAP with speed-optimized settings
             os.chdir(os.path.join(base_dir, "ZAP_2.16.1"))
-            print(os.getcwd())
             self.zap_process = subprocess.Popen([
                 zap_path,
                 "-daemon",
@@ -52,21 +48,42 @@ class FastVulnScanner:
                 "-host",
                 "127.0.0.1",
                 "-config",
-                "api=12345"
+                "api.key=" + self.api_key
             ], stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True)
             os.chdir(base_dir)
+            
+
+            def read_and_print_output(pipe, stream_name):
+                for line in iter(pipe.readline, ''):  # Iterate over lines from the pipe
+                    if not self.zap is None:
+                        break
+                    # print(f"[{stream_name}] {line.strip()}", flush=True) # Print to console
+                pipe.close()
+
+
+            stdout_thread = threading.Thread(target=read_and_print_output, args=(self.zap_process.stdout, "stdout"))
+            stderr_thread = threading.Thread(target=read_and_print_output, args=(self.zap_process.stderr, "stderr"))
+
+            stdout_thread.start()
+            stderr_thread.start()
+            
             # Wait for ZAP with shorter timeout
-            for _ in range(30):  # 30 second timeout
+            for _ in range(30):  # 40 second timeout
                 if self.is_zap_running():
                     break
                 time.sleep(1)
             else:
                 raise RuntimeError("ZAP failed to start quickly")
+            
+            # print("Finished starting")
+            # stdout_thread.join()
+            # stderr_thread.join()
         
         self.zap = ZAPv2(apikey=self.api_key, proxies={
             'http': self.zap_api_url,
             'https': self.zap_api_url
         })
+        print("[*] Zap has been started")
         return True
 
     def quick_spider(self, target_url: str, max_time=30):
@@ -100,6 +117,8 @@ class FastVulnScanner:
         
         # Disable all scanners first
         self.zap.ascan.disable_all_scanners()
+        self.zap.pscan.disable_all_scanners()
+        self.zap.pscan.set_enabled(False)
         
         # Enable only requested vulnerability types
         scanner_map = {
@@ -116,7 +135,7 @@ class FastVulnScanner:
         }
         
         if not scan_types:
-            scan_types = ['sql_injection', 'xss', 'lfi']  # Default fast scan
+            scan_types = ['xss', 'lfi', 'sql_injection']  # Default fast scan
         
         enabled_count = 0
         for scan_type in scan_types:
@@ -150,47 +169,22 @@ class FastVulnScanner:
         print(f"[*] Found {len(alerts)} alerts in {int(time.time() - start_time)}s")
         return alerts
 
-    def parallel_quick_scan(self, urls: List[str], scan_types: List[str] = None):
-        """Run multiple quick scans in parallel"""
-        results = {}
-        
-        def scan_single_url(url):
-            try:
-                alerts = self.fast_active_scan(url, scan_types, max_time=30)
-                return url, alerts
-            except Exception as e:
-                print(f"[!] Error scanning {url}: {e}")
-                return url, []
-        
-        with concurrent.futures.ThreadPoolExecutor(max_workers=3) as executor:
-            future_to_url = {executor.submit(scan_single_url, url): url for url in urls[:5]}  # Limit to 5 URLs
-            
-            for future in concurrent.futures.as_completed(future_to_url):
-                url, alerts = future.result()
-                results[url] = alerts
-        
-        return results
-
 # Main scanning functions
-@tool(name="fast_vuln_scan", description="Fast comprehensive vulnerability scan", permission=ToolPermission.ADMIN)
+@tool(name="zap_active_scan", description="Preforms an in-depth active scan on the website target_url, scanning for scan_types vulnerabilties (between sql_injection (sql injection), xss (cross-site scripting), lfi (local file inclusion), rfi (remote file inclusion), xxe (xml external entity injection), csrf (cross-site request forgery), directory_traversal (directory traversal), command_injection (command injection), ldap_injection (LDAP injection), xpath_injection (xpath injection))", permission=ToolPermission.ADMIN)
 def fast_comprehensive_scan(target_url: str, scan_types: List[str] = None):
     """
     Fast vulnerability scanner with multiple options
     
     Args:
         target_url: URL to scan
-        scan_types: List of vulnerability types ['sql_injection', 'xss', 'lfi', 'rfi', 'xxe', 'csrf']
+        scan_types: List of vulnerability types ['sql_injection', 'xss', 'lfi', 'rfi', 'xxe', 'csrf', 'directory_traversal', 'command_injection', 'ldap_injection', 'xpath_injection']
     """
     
     if not scan_types:
         scan_types = ['sql_injection', 'xss', 'lfi', 'csrf']
     
     results = {
-        'target': target_url,
-        'scan_types': scan_types,
         'zap_results': [],
-        'nuclei_results': [],
-        'sqlmap_results': None,
         'scan_time': 0
     }
     
@@ -212,12 +206,11 @@ def fast_comprehensive_scan(target_url: str, scan_types: List[str] = None):
         results['scan_time'] = time.time() - start_time
         
         # Summary
-        total_issues = len(results['zap_results']) + len(results['nuclei_results'] or [])
+        total_issues = len(results['zap_results'])
         print(f"\n=== Scan Complete ===")
         print(f"Total time: {results['scan_time']:.1f}s")
         print(f"Total issues found: {total_issues}")
         print(f"ZAP alerts: {len(results['zap_results'])}")
-        print(f"Nuclei alerts: {len(results['nuclei_results'] or [])}")
         
         return results
         
@@ -225,5 +218,26 @@ def fast_comprehensive_scan(target_url: str, scan_types: List[str] = None):
         print(f"[!] Scan error: {e}")
         results['error'] = str(e)
         return results
+    
+@tool(name="zap_passive_scan", description="Preforms a safe passive scan on the website target_url to determine preliminary security vulnerabilities.", permission=ToolPermission.ADMIN)
+def passive_zap_scan(target_url: str) -> List[dict[str, str]]:
+    try:
+        scanner = FastVulnScanner()
+        scanner.start_zap_fast()
+        
+        scanner.zap.pscan.enable_all_scanners()
+        scanner.zap.pscan.set_enabled(True)
+        scanner.zap.urlopen(target_url)
+        
+        while int(scanner.zap.pscan.records_to_scan) > 0:
+            print(f"Remaining records to scan: {scanner.zap.pscan.records_to_scan}")
+            time.sleep(2)
+        print("no here")
+        alerts = scanner.zap.core.alerts(baseurl=target_url)
+        return alerts
+        
+    except Exception as e:
+        print(f"[!] Scan error: {e}")
+        return e
 
-print(fast_comprehensive_scan("https://www.transformatech.com", ['sql_injection', 'xss', 'lfi', 'rfi', 'xxe', 'csrf']))
+# print(passive_zap_scan("https://www.transformatech.com"))

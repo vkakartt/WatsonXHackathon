@@ -10,3 +10,4 @@ style: default
 collaborators: []
 tools:
   - initial_screening
+  - zap_passive_scan

@@ -10,4 +10,5 @@ style: default
 collaborators:
   - Initial_Screening_Agent
   - SQL_Injection_Agent
+  - Zap_Agent
 tools: []
