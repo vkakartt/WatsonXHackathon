@@ -6,5 +6,6 @@ orchestrate tools import -k python -f "Initial_Screening_Agent/initial_screening
 orchestrate agents import -f Initial_Screening_Agent/uv-config.yaml
 orchestrate agents import -f SQL_Injection_Agent/uv-config.yaml
 orchestrate agents import -f Zap_Agent/uv-config.yaml
+orchestrate agents import -f XSS_Agent/uv-config.yaml
 
 orchestrate agents import -f Cybersecurity_Manager/uv-config.yaml

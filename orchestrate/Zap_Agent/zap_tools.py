@@ -239,5 +239,67 @@ def passive_zap_scan(target_url: str) -> List[dict[str, str]]:
     except Exception as e:
         print(f"[!] Scan error: {e}")
         return e
+    
+
+@tool(name="screen_for_xss", description="Runs in depth xss specific zap tests on a given website.", permission=ToolPermission.ADMIN)
+def screen_for_xss(website_link: str) -> str:
+    output = ''
+
+    """
+    dir_path = os.path.dirname(__file__)
+
+    os.chdir(dir_path + '/../ZAP/Zed Attack Proxy')
+    cmd = [
+        "zap.bat",
+        "-daemon",
+        "-port", "8090",
+        "-host", "127.0.0.1",
+        "-config", "api.key=12345"
+    ]
+
+    process = subprocess.Popen(
+        cmd,
+        stdout=subprocess.PIPE,
+        stderr=subprocess.STDOUT,
+        shell=True,
+        text=True
+    )
+
+    os.chdir(dir_path)
+    """
+
+    api_key = '12345'
+    target = 'website_link'
+    host = 'http://127.0.0.1'
+    zap = ZAPv2(apikey=api_key, proxies={'http': host + ':8090'})
+
+    # Access and spider the target
+    zap.urlopen(target)
+    zap.spider.scan(target)
+    # while int(zap.spider.status()) < 100:
+        # print(f'Spider progress: {zap.spider.status()}%')
+        
+
+    # Enable only XSS scanners
+    zap.ascan.disable_all_scanners()
+    zap.ascan.enable_scanners('40012,40014,40016,40017')
+
+    # Start active scan
+    scan_id = zap.ascan.scan(target)
+    # while int(zap.ascan.status(scan_id)) < 100:
+        # print(f'Scan progress: {zap.ascan.status(scan_id)}%')
+
+    # Print XSS alerts
+    alerts = zap.core.alerts(baseurl=target)
+    output += "[*] XSS Alerts:"
+    bNoAlerts = True
+    for alert in alerts:
+        if 'xss' in alert['alert'].lower():
+            temp = f"- {alert['alert']} at {alert['url']}"
+            output += temp
+            temp = None
+            bNoAlerts = False
+    if bNoAlerts:
+        output += "No XSS Vulnerabilities detected"
 
 # print(passive_zap_scan("https://www.transformatech.com"))
