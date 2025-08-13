@@ -11,161 +11,104 @@ class FastVulnScanner:
     def __init__(self, zap_port=8090, api_key="12345"):
         self.zap_port = zap_port
         self.api_key = api_key
-        self.zap_api_url = f"http://127.0.0.1:{zap_port}"
+        self.zap_api_url = "https://kxhmqxrn-8000.use.devtunnels.ms/zap"
         self.zap = None
         self.zap_process = None
 
     def is_zap_running(self):
         try:
-            response = requests.get(f"{self.zap_api_url}/JSON/core/view/version/?apikey={self.api_key}", timeout=3)
+            response = requests.get(f"{self.zap_api_url}/JSON/core/view/version/", timeout=3)
             return response.status_code == 200
         except:
             return False
-
-    def start_zap_fast(self):
-        """Start ZAP with optimized settings for speed"""
-        base_dir = os.path.dirname(os.path.abspath(__file__))
-        zap_path = os.path.join(base_dir, "ZAP_2.16.1/zap.bat")
         
-        if not self.is_zap_running():
-            print("[*] Starting ZAP in fast mode...")
-            
-            # Kill existing processes
-            try:
-                subprocess.run(["taskkill", "/F", "/IM", "java.exe"], 
-                             capture_output=True, timeout=5)
-                time.sleep(1)
-            except:
-                pass
+    def zap_get(self, path, params=None):
+        if params is None:
+            params = {}
+        resp = requests.get(f"{self.zap_api_url}{path}", params=params)
+        resp.raise_for_status()
+        return resp.json()
 
-            # Start ZAP with speed-optimized settings
-            os.chdir(os.path.join(base_dir, "ZAP_2.16.1"))
-            self.zap_process = subprocess.Popen([
-                zap_path,
-                "-daemon",
-                "-port",
-                str(self.zap_port),
-                "-host",
-                "127.0.0.1",
-                "-config",
-                "api.key=" + self.api_key
-            ], stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True)
-            os.chdir(base_dir)
-            
+    def zap_post(self, path, data=None):
+        if data is None:
+            data = {}
+        resp = requests.post(f"{self.zap_api_url}{path}", data=data)
+        resp.raise_for_status()
+        return resp.json()
 
-            def read_and_print_output(pipe, stream_name):
-                for line in iter(pipe.readline, ''):  # Iterate over lines from the pipe
-                    if not self.zap is None:
-                        break
-                    # print(f"[{stream_name}] {line.strip()}", flush=True) # Print to console
-                pipe.close()
-
-
-            stdout_thread = threading.Thread(target=read_and_print_output, args=(self.zap_process.stdout, "stdout"))
-            stderr_thread = threading.Thread(target=read_and_print_output, args=(self.zap_process.stderr, "stderr"))
-
-            stdout_thread.start()
-            stderr_thread.start()
-            
-            # Wait for ZAP with shorter timeout
-            for _ in range(30):  # 40 second timeout
-                if self.is_zap_running():
-                    break
-                time.sleep(1)
-            else:
-                raise RuntimeError("ZAP failed to start quickly")
-            
-            # print("Finished starting")
-            # stdout_thread.join()
-            # stderr_thread.join()
-        
-        self.zap = ZAPv2(apikey=self.api_key, proxies={
-            'http': self.zap_api_url,
-            'https': self.zap_api_url
-        })
-        print("[*] Zap has been started")
-        return True
-
+    
     def quick_spider(self, target_url: str, max_time=30):
-        """Fast spider with time limits"""
         print(f"[*] Quick spidering {target_url} (max {max_time}s)...")
-        
-        # Configure spider for speed
-        self.zap.spider.set_option_max_depth(2)
-        self.zap.spider.set_option_max_children(10)
-        self.zap.spider.set_option_max_duration(max_time)
-        
-        spider_id = self.zap.spider.scan(target_url)
-        
-        # Monitor with timeout
+
+        self.zap_get("/JSON/spider/action/setOptionMaxDepth", {"Integer": 2})
+        self.zap_get("/JSON/spider/action/setOptionMaxChildren", {"Integer": 10})
+        self.zap_get("/JSON/spider/action/setOptionMaxDuration", {"Integer": max_time})
+
+        spider_id = self.zap_get("/JSON/spider/action/scan/", {"url": target_url})["scan"]
+
         start_time = time.time()
         while time.time() - start_time < max_time:
-            status = int(self.zap.spider.status(spider_id))
+            status = int(self.zap_get("/JSON/spider/view/status/", {"scanId": spider_id})["status"])
             if status >= 100:
                 break
             time.sleep(2)
-        
-        # Stop spider if still running
-        self.zap.spider.stop(spider_id)
-        urls = self.zap.core.urls(baseurl=target_url)
+
+        self.zap_get("/JSON/spider/action/stop/", {"scanId": spider_id})
+        urls = self.zap_get("/JSON/core/view/urls/", {"baseurl": target_url})["urls"]
         print(f"[*] Found {len(urls)} URLs in {int(time.time() - start_time)}s")
         return urls
 
     def fast_active_scan(self, target_url: str, scan_types: List[str] = None, max_time=60):
-        """Fast active scan with selective vulnerability types"""
         print(f"[*] Running fast active scan (max {max_time}s)...")
-        
-        # Disable all scanners first
-        self.zap.ascan.disable_all_scanners()
-        self.zap.pscan.disable_all_scanners()
-        self.zap.pscan.set_enabled(False)
-        
-        # Enable only requested vulnerability types
+
+        self.zap_get("/JSON/ascan/action/disableAllScanners/")
+        self.zap_get("/JSON/pscan/action/disableAllScanners/")
+        self.zap_get("/JSON/pscan/action/setEnabled/", {"enabled": "false"})
+
         scanner_map = {
-            'sql_injection': ['40018', '40019', '40020', '40021', '40022'],
-            'xss': ['40012', '40013', '40014', '40016', '40017'],
-            'lfi': ['40003', '40004'],
-            'rfi': ['40005'],
+            'sql_injection': ['40018', '40019', '40020', '40021', '40022', '40024', '40027'],
+            'xss': ['40012', '40014', '40016', '40017', '40026'],
+            'lfi': ['40003'],
+            'rfi': ['7'],
             'xxe': ['90021'],
-            'csrf': ['20012'],
-            'directory_traversal': ['40001', '40002'],
+            'directory_traversal': ['6'],
             'command_injection': ['90020'],
-            'ldap_injection': ['40015'],
-            'xpath_injection': ['40023']
+            'xpath_injection': ['90021']
         }
-        
+
         if not scan_types:
-            scan_types = ['xss', 'lfi', 'sql_injection']  # Default fast scan
-        
+            scan_types = ['xss', 'lfi', 'sql_injection']
+
+        scanner_ids = []
         enabled_count = 0
         for scan_type in scan_types:
             if scan_type in scanner_map:
-                for scanner_id in scanner_map[scan_type]:
-                    try:
-                        self.zap.ascan.enable_scanners(scanner_id)
-                        self.zap.ascan.set_scanner_attack_strength(scanner_id, 'MEDIUM')
-                        self.zap.ascan.set_scanner_alert_threshold(scanner_id, 'MEDIUM')
-                        enabled_count += 1
-                    except:
-                        pass
-        
+                scanner_ids = scanner_map[scan_type]  # This is a list of scanner IDs
+                
+                print(",".join(scanner_ids))
+                
+                # Enable all scanners in one API call (comma-separated string)
+                self.zap_get("/JSON/ascan/action/enableScanners/", {
+                    "ids": ",".join(scanner_ids)
+                })
+                
+                # For each scanner ID, set attack strength and alert threshold
+                enabled_count += len(scanner_ids)
+
+
         print(f"[*] Enabled {enabled_count} scanners for: {', '.join(scan_types)}")
-        
-        # Start scan
-        scan_id = self.zap.ascan.scan(target_url)
-        
-        # Monitor with timeout
+
+        scan_id = self.zap_get("/JSON/ascan/action/scan/", {"url": target_url})["scan"]
+
         start_time = time.time()
         while time.time() - start_time < max_time:
-            status = int(self.zap.ascan.status(scan_id))
+            status = int(self.zap_get("/JSON/ascan/view/status/", {"scanId": scan_id})["status"])
             if status >= 100:
                 break
             time.sleep(3)
-        
-        # Stop scan if still running
-        self.zap.ascan.stop(scan_id)
-        
-        alerts = self.zap.core.alerts(baseurl=target_url)
+
+        self.zap_get("/JSON/ascan/action/stop/", {"scanId": scan_id})
+        alerts = self.zap_get("/JSON/core/view/alerts/", {"baseurl": target_url})["alerts"]
         print(f"[*] Found {len(alerts)} alerts in {int(time.time() - start_time)}s")
         return alerts
 
@@ -179,10 +122,7 @@ def fast_comprehensive_scan(target_url: str, scan_types: List[str] = None):
         target_url: URL to scan
         scan_types: List of vulnerability types ['sql_injection', 'xss', 'lfi', 'rfi', 'xxe', 'csrf', 'directory_traversal', 'command_injection', 'ldap_injection', 'xpath_injection']
     """
-    
-    if not scan_types:
-        scan_types = ['sql_injection', 'xss', 'lfi', 'csrf']
-    
+        
     results = {
         'zap_results': [],
         'scan_time': 0
@@ -194,7 +134,8 @@ def fast_comprehensive_scan(target_url: str, scan_types: List[str] = None):
         # ZAP Fast Scan
         print("=== ZAP Fast Scan ===")
         scanner = FastVulnScanner()
-        scanner.start_zap_fast()
+        if not scanner.is_zap_running():
+            return "cringe"
         
         # Quick spider
         urls = scanner.quick_spider(target_url, max_time=15)
@@ -204,6 +145,7 @@ def fast_comprehensive_scan(target_url: str, scan_types: List[str] = None):
         results['zap_results'] = alerts
         
         results['scan_time'] = time.time() - start_time
+        results['urls'] = urls
         
         # Summary
         total_issues = len(results['zap_results'])
@@ -223,83 +165,74 @@ def fast_comprehensive_scan(target_url: str, scan_types: List[str] = None):
 def passive_zap_scan(target_url: str) -> List[dict[str, str]]:
     try:
         scanner = FastVulnScanner()
-        scanner.start_zap_fast()
-        
-        scanner.zap.pscan.enable_all_scanners()
-        scanner.zap.pscan.set_enabled(True)
-        scanner.zap.urlopen(target_url)
-        
-        while int(scanner.zap.pscan.records_to_scan) > 0:
-            print(f"Remaining records to scan: {scanner.zap.pscan.records_to_scan}")
+
+        # Enable passive scan
+        scanner.zap_get("/JSON/pscan/action/enableAllScanners/")
+        scanner.zap_get("/JSON/pscan/action/setEnabled/", {"enabled": "true"})
+
+        # Access the target to trigger passive scan
+        scanner.zap_get("/JSON/core/action/accessUrl/", {"url": target_url})
+
+        # Wait for passive scanner to finish
+        while True:
+            records_left = int(scanner.zap_get("/JSON/pscan/view/recordsToScan/")["recordsToScan"])
+            print(f"Remaining records to scan: {records_left}")
+            if records_left == 0:
+                break
             time.sleep(2)
-        print("no here")
-        alerts = scanner.zap.core.alerts(baseurl=target_url)
+
+        # Fetch alerts
+        alerts = scanner.zap_get("/JSON/core/view/alerts/", {"baseurl": target_url})["alerts"]
+        print("[*] Passive scan complete.")
         return alerts
-        
+
     except Exception as e:
-        print(f"[!] Scan error: {e}")
-        return e
+        print(f"[!] Passive scan error: {e}")
+        return [{"error": str(e)}]
     
 
 @tool(name="screen_for_xss", description="Runs in depth xss specific zap tests on a given website.", permission=ToolPermission.ADMIN)
 def screen_for_xss(website_link: str) -> str:
     output = ''
+    try:
+        scanner = FastVulnScanner()
+        target = website_link
 
-    """
-    dir_path = os.path.dirname(__file__)
+        # Access + Spider
+        scanner.zap_get("/JSON/core/action/accessUrl/", {"url": target})
+        scanner.zap_get("/JSON/spider/action/scan/", {"url": target})
+        time.sleep(5)  # Optional: give spider a moment to run
 
-    os.chdir(dir_path + '/../ZAP/Zed Attack Proxy')
-    cmd = [
-        "zap.bat",
-        "-daemon",
-        "-port", "8090",
-        "-host", "127.0.0.1",
-        "-config", "api.key=12345"
-    ]
+        # Disable all scanners, then enable only XSS ones
+        scanner.zap_get("/JSON/ascan/action/disableAllScanners/")
+        scanner.zap_get("/JSON/ascan/action/enableScanners/", {"ids": "40012,40014,40016,40017"})
 
-    process = subprocess.Popen(
-        cmd,
-        stdout=subprocess.PIPE,
-        stderr=subprocess.STDOUT,
-        shell=True,
-        text=True
-    )
+        # Start active scan
+        scan_id = scanner.zap_get("/JSON/ascan/action/scan/", {"url": target})["scan"]
 
-    os.chdir(dir_path)
-    """
+        # Wait for scan to complete (optional: you can add a timeout if needed)
+        while True:
+            status = int(scanner.zap_get("/JSON/ascan/view/status/", {"scanId": scan_id})["status"])
+            print(f"XSS scan progress: {status}%")
+            if status >= 100:
+                break
+            time.sleep(3)
 
-    api_key = '12345'
-    target = 'website_link'
-    host = 'http://127.0.0.1'
-    zap = ZAPv2(apikey=api_key, proxies={'http': host + ':8090'})
+        # Fetch alerts
+        alerts = scanner.zap_get("/JSON/core/view/alerts/", {"baseurl": target})["alerts"]
+        output += "[*] XSS Alerts:\n"
+        bNoAlerts = True
+        for alert in alerts:
+            if 'xss' in alert['alert'].lower():
+                output += f"- {alert['alert']} at {alert['url']}\n"
+                bNoAlerts = False
 
-    # Access and spider the target
-    zap.urlopen(target)
-    zap.spider.scan(target)
-    # while int(zap.spider.status()) < 100:
-        # print(f'Spider progress: {zap.spider.status()}%')
-        
+        if bNoAlerts:
+            output += "No XSS Vulnerabilities detected"
 
-    # Enable only XSS scanners
-    zap.ascan.disable_all_scanners()
-    zap.ascan.enable_scanners('40012,40014,40016,40017')
+        return output
 
-    # Start active scan
-    scan_id = zap.ascan.scan(target)
-    # while int(zap.ascan.status(scan_id)) < 100:
-        # print(f'Scan progress: {zap.ascan.status(scan_id)}%')
+    except Exception as e:
+        return f"[!] XSS scan error: {e}"
 
-    # Print XSS alerts
-    alerts = zap.core.alerts(baseurl=target)
-    output += "[*] XSS Alerts:"
-    bNoAlerts = True
-    for alert in alerts:
-        if 'xss' in alert['alert'].lower():
-            temp = f"- {alert['alert']} at {alert['url']}"
-            output += temp
-            temp = None
-            bNoAlerts = False
-    if bNoAlerts:
-        output += "No XSS Vulnerabilities detected"
-
-# print(passive_zap_scan("https://www.transformatech.com"))
+print(fast_comprehensive_scan("https://www.transformatech.com"))
