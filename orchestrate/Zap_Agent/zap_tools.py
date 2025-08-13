@@ -235,4 +235,4 @@ def screen_for_xss(website_link: str) -> str:
     except Exception as e:
         return f"[!] XSS scan error: {e}"
 
-print(fast_comprehensive_scan("https://www.transformatech.com"))
+# print(fast_comprehensive_scan("https://www.transformatech.com"))
