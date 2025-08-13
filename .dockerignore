@@ -1,0 +1,16 @@
+# Ignore everything not needed for Docker build
+.git
+.gitignore
+node_modules
+__pycache__
+*.pyc
+*.log
+venv
+*.env
+frontend/
+docs/
+*.md
+orchestrate/
+web-incredibly-secure/
+web-not-secure/
+ZAP_2.16.1/
