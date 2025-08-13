@@ -58,7 +58,7 @@ class FastVulnScanner:
         print(f"[*] Found {len(urls)} URLs in {int(time.time() - start_time)}s")
         return urls
 
-    def fast_active_scan(self, target_url: str, scan_types: List[str] = None, max_time=60):
+    def fast_active_scan(self, target_url: str, scan_type: str, max_time=60):
         print(f"[*] Running fast active scan (max {max_time}s)...")
 
         self.zap_get("/JSON/ascan/action/disableAllScanners/")
@@ -76,27 +76,23 @@ class FastVulnScanner:
             'xpath_injection': ['90021']
         }
 
-        if not scan_types:
-            scan_types = ['xss', 'lfi', 'sql_injection']
-
         scanner_ids = []
         enabled_count = 0
-        for scan_type in scan_types:
-            if scan_type in scanner_map:
-                scanner_ids = scanner_map[scan_type]  # This is a list of scanner IDs
-                
-                print(",".join(scanner_ids))
-                
-                # Enable all scanners in one API call (comma-separated string)
-                self.zap_get("/JSON/ascan/action/enableScanners/", {
-                    "ids": ",".join(scanner_ids)
-                })
-                
-                # For each scanner ID, set attack strength and alert threshold
-                enabled_count += len(scanner_ids)
+        if scan_type in scanner_map:
+            scanner_ids = scanner_map[scan_type]  # This is a list of scanner IDs
+            
+            print(",".join(scanner_ids))
+            
+            # Enable all scanners in one API call (comma-separated string)
+            self.zap_get("/JSON/ascan/action/enableScanners/", {
+                "ids": ",".join(scanner_ids)
+            })
+            
+            # For each scanner ID, set attack strength and alert threshold
+            enabled_count += len(scanner_ids)
 
 
-        print(f"[*] Enabled {enabled_count} scanners for: {', '.join(scan_types)}")
+        print(f"[*] Enabled {enabled_count} scanners for: {', '.join(scan_type)}")
 
         scan_id = self.zap_get("/JSON/ascan/action/scan/", {"url": target_url})["scan"]
 
@@ -114,7 +110,7 @@ class FastVulnScanner:
 
 # Main scanning functions
 @tool(name="zap_active_scan", description="Preforms an in-depth active scan on the website target_url, scanning for scan_types vulnerabilties (between sql_injection (sql injection), xss (cross-site scripting), lfi (local file inclusion), rfi (remote file inclusion), xxe (xml external entity injection), csrf (cross-site request forgery), directory_traversal (directory traversal), command_injection (command injection), ldap_injection (LDAP injection), xpath_injection (xpath injection))", permission=ToolPermission.ADMIN)
-def fast_comprehensive_scan(target_url: str, scan_types: List[str] = None):
+def fast_comprehensive_scan(target_url: str, scan_types: str):
     """
     Fast vulnerability scanner with multiple options
     
@@ -235,4 +231,4 @@ def screen_for_xss(website_link: str) -> str:
     except Exception as e:
         return f"[!] XSS scan error: {e}"
 
-# print(fast_comprehensive_scan("https://www.transformatech.com"))
+# print(fast_comprehensive_scan("https://www.transformatech.com",'xss'))
