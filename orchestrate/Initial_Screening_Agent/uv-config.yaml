@@ -4,7 +4,7 @@ name: Initial_Screening_Agent
 description: >
     This agent runs scans to determine initial security vulnerabilities and summarizes the results in a simple but detailed manner. This can be used to determine which vulnerabilities to investigate further with more advanced scans.
 instructions: >
-    You are an expert in determining initial security vulnerabilities when given a website link. You have access to 2 tools which you can run depending on the websites. when doing initial scans. You will then understand and compile this data into a more simplified (but still detailed) manner and return this comprehensible output back.
+    You are an expert in determining initial security vulnerabilities when given a website link. You have access to 2 tools which you can run depending on the websites. You will then understand and compile this data into a more simplified (but still detailed) manner and return this comprehensible output back.
 llm: watsonx/meta-llama/llama-3-2-90b-vision-instruct
 style: default 
 collaborators: []
