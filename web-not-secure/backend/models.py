@@ -3,7 +3,7 @@ from sqlalchemy.orm import relationship
 import database
 
 class Users(database.Base):
-    __tablename__ = "users"
+    __tablename__ = "users_unsecure"
     
     id = Column(Integer, primary_key=True)
     username = Column(String, unique=True)
