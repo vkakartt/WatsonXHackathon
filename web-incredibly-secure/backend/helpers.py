@@ -18,7 +18,7 @@ AUTH_TOKEN = "eyJraWQiOiIyMDE5MDcyNCIsImFsZyI6IlJTMjU2In0.eyJpYW1faWQiOiJJQk1pZC
 BASE_URL = "https://api.ca-tor.watson-orchestrate.cloud.ibm.com/instances/1a32ff28-f8a6-416a-a329-07d5b40715c9/v1"
 
 ZAP_API_KEY = "aaef54aee7ea6b3df86e50f888a8d2c7"
-ZAP_API_URL = "http://localhost:8090"
+ZAP_API_URL = "https://watsonxhackathon.onrender.com"
 
 async def makeApiCall(url: str, method, headers=None, params=None, payload=None):
     if headers:
