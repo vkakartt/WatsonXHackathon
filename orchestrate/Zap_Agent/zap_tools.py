@@ -8,7 +8,7 @@ from typing import List
 import threading
 
 class FastVulnScanner:
-    def __init__(self, zap_port=8090, api_key="12345"):
+    def __init__(self, zap_port=8090, api_key="aaef54aee7ea6b3df86e50f888a8d2c7"):
         self.zap_port = zap_port
         self.api_key = api_key
         self.zap_api_url = "https://kxhmqxrn-8000.use.devtunnels.ms/zap"
