@@ -1,3 +1,26 @@
 FROM ghcr.io/zaproxy/zaproxy:stable
 
-CMD ["sh", "-c", "zap.sh -daemon -host 0.0.0.0 -port $PORT -config api.key=aaef54aee7ea6b3df86e50f888a8d2c7 -config hud.enabled=false -config api.addrs.addr.name=.* -config api.addrs.addr.regex=true -config connection.followRedirect=false -config connection.postFormRedirects=false -config oast.service.callback.enabled=false -config network.proxy.chain.enabled=false -config network.connection.proxyChain.skipName=.* -config api.disablekey=false -config api.secure=false -config api.nohttps=true -config network.connection.defaultUserAgent='ZAP' -config connection.dnsTtlSuccessfulQueries=0 -config forceSSL=false"]
+# Create a startup script that forces HTTP mode
+RUN echo '#!/bin/bash' > /usr/local/bin/start-http.sh && \
+    echo 'echo "Starting ZAP in HTTP-only mode on port $PORT..."' >> /usr/local/bin/start-http.sh && \
+    echo 'exec zap.sh -daemon \' >> /usr/local/bin/start-http.sh && \
+    echo '    -host 0.0.0.0 \' >> /usr/local/bin/start-http.sh && \
+    echo '    -port $PORT \' >> /usr/local/bin/start-http.sh && \
+    echo '    -config api.key=aaef54aee7ea6b3df86e50f888a8d2c7 \' >> /usr/local/bin/start-http.sh && \
+    echo '    -config hud.enabled=false \' >> /usr/local/bin/start-http.sh && \
+    echo '    -config api.addrs.addr.name=.* \' >> /usr/local/bin/start-http.sh && \
+    echo '    -config api.addrs.addr.regex=true \' >> /usr/local/bin/start-http.sh && \
+    echo '    -config connection.followRedirect=false \' >> /usr/local/bin/start-http.sh && \
+    echo '    -config connection.postFormRedirects=false \' >> /usr/local/bin/start-http.sh && \
+    echo '    -config oast.service.callback.enabled=false \' >> /usr/local/bin/start-http.sh && \
+    echo '    -config network.proxy.chain.enabled=false \' >> /usr/local/bin/start-http.sh && \
+    echo '    -config network.connection.proxyChain.skipName=.* \' >> /usr/local/bin/start-http.sh && \
+    echo '    -config api.disablekey=false \' >> /usr/local/bin/start-http.sh && \
+    echo '    -config api.secure=false \' >> /usr/local/bin/start-http.sh && \
+    echo '    -config api.nohttps=true \' >> /usr/local/bin/start-http.sh && \
+    echo '    -config network.connection.httpOnly=true \' >> /usr/local/bin/start-http.sh && \
+    echo '    -config connection.timeoutInSecs=60' >> /usr/local/bin/start-http.sh
+
+RUN chmod +x /usr/local/bin/start-http.sh
+
+CMD ["/usr/local/bin/start-http.sh"]
