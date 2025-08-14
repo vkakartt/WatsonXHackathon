@@ -9,11 +9,10 @@ RUN apt-get update && apt-get install -y nginx && rm -rf /var/lib/apt/lists/*
 # Copy nginx config to the correct location
 COPY nginx.conf /etc/nginx/nginx.conf
 
-# Ensure the PORT env from Render is passed in
-ENV ZAP_PORT=8080
-ENV PORT=443
+# Expose default ports
+EXPOSE 80
 
-# Start both ZAP and NGINX inline
+# Start both ZAP and NGINX using bash to handle inline logic
 CMD zap.sh -daemon \
     -host 127.0.0.1 \
     -port $ZAP_PORT \
