@@ -1,5 +1,5 @@
 FROM ghcr.io/zaproxy/zaproxy:stable
 
-COPY start-zap.sh /start-zap.sh
+EXPOSE 1000
 
-CMD ["/start-zap.sh"]
+CMD ["zap.sh", "-daemon", "-port", "1000", "-host", "0.0.0.0", "-config", "api.key=aaef54aee7ea6b3df86e50f888a8d2c7", "-config", "api.addrs.addr.name=.*", "-config", "api.addrs.addr.regex=true", "-config", "httprestrictions.httpSender.followRedirect=false", "-config", "oast.service.callback.enabled=false", "-config", "network.proxy.chain.enabled=false", "-config", "network.connection.proxyChain.skipName=.*", "-config", "api.disablekey=false"]
