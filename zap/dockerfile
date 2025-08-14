@@ -1,42 +1,20 @@
 FROM ghcr.io/zaproxy/zaproxy:stable
 
+# Switch to root to install packages
 USER root
-RUN apt-get update && apt-get install -y nginx && rm -rf /var/lib/apt/lists/*
 
-# Remove default nginx configs
-RUN rm -f /etc/nginx/sites-enabled/default /etc/nginx/conf.d/default.conf
+# Install gettext-base for envsubst
+RUN apt-get update && apt-get install -y gettext-base socat && rm -rf /var/lib/apt/lists/*
 
-# Create nginx config that properly handles Render's HTTPS termination
-RUN echo 'server {' > /etc/nginx/conf.d/app.conf && \
-    echo '    listen $PORT;' >> /etc/nginx/conf.d/app.conf && \
-    echo '    server_name _;' >> /etc/nginx/conf.d/app.conf && \
-    echo '' >> /etc/nginx/conf.d/app.conf && \
-    echo '    # Tell nginx this is already HTTPS (from Render termination)' >> /etc/nginx/conf.d/app.conf && \
-    echo '    set $forwarded_proto $http_x_forwarded_proto;' >> /etc/nginx/conf.d/app.conf && \
-    echo '    if ($forwarded_proto = "") {' >> /etc/nginx/conf.d/app.conf && \
-    echo '        set $forwarded_proto "https";' >> /etc/nginx/conf.d/app.conf && \
-    echo '    }' >> /etc/nginx/conf.d/app.conf && \
-    echo '' >> /etc/nginx/conf.d/app.conf && \
-    echo '    location / {' >> /etc/nginx/conf.d/app.conf && \
-    echo '        proxy_pass http://127.0.0.1:8081;' >> /etc/nginx/conf.d/app.conf && \
-    echo '        proxy_set_header Host $host;' >> /etc/nginx/conf.d/app.conf && \
-    echo '        proxy_set_header X-Real-IP $remote_addr;' >> /etc/nginx/conf.d/app.conf && \
-    echo '        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;' >> /etc/nginx/conf.d/app.conf && \
-    echo '        proxy_set_header X-Forwarded-Proto $forwarded_proto;' >> /etc/nginx/conf.d/app.conf && \
-    echo '        proxy_redirect off;' >> /etc/nginx/conf.d/app.conf && \
-    echo '        proxy_intercept_errors off;' >> /etc/nginx/conf.d/app.conf && \
-    echo '    }' >> /etc/nginx/conf.d/app.conf && \
-    echo '}' >> /etc/nginx/conf.d/app.conf
-
-# Create startup script
+# Create a simple TCP proxy that forwards all traffic to ZAP
 RUN echo '#!/bin/bash' > /usr/local/bin/start.sh && \
     echo 'set -e' >> /usr/local/bin/start.sh && \
-    echo 'echo "Starting ZAP..."' >> /usr/local/bin/start.sh && \
-    echo 'su zap -c "zap.sh -daemon -host 127.0.0.1 -port 8081 -config api.key=aaef54aee7ea6b3df86e50f888a8d2c7 -config hud.enabled=false -config api.addrs.addr.name=.* -config api.addrs.addr.regex=true -config connection.followRedirect=false -config connection.postFormRedirects=false -config oast.service.callback.enabled=false -config network.proxy.chain.enabled=false -config network.connection.proxyChain.skipName=.* -config api.disablekey=false -config api.secure=false -config api.nohttps=true" &' >> /usr/local/bin/start.sh && \
-    echo 'sleep 10' >> /usr/local/bin/start.sh && \
-    echo 'echo "Starting nginx with PORT substitution..."' >> /usr/local/bin/start.sh && \
-    echo 'envsubst '"'"'$PORT'"'"' < /etc/nginx/conf.d/app.conf > /tmp/app.conf && mv /tmp/app.conf /etc/nginx/conf.d/app.conf' >> /usr/local/bin/start.sh && \
-    echo 'nginx -g "daemon off;"' >> /usr/local/bin/start.sh
+    echo 'echo "Starting ZAP in headless mode..."' >> /usr/local/bin/start.sh && \
+    echo 'su zap -c "zap.sh -daemon -host 127.0.0.1 -port 8081 -config api.key=aaef54aee7ea6b3df86e50f888a8d2c7 -config hud.enabled=false -config api.addrs.addr.name=.* -config api.addrs.addr.regex=true -config connection.followRedirect=false -config connection.postFormRedirects=false -config oast.service.callback.enabled=false -config network.proxy.chain.enabled=false -config network.connection.proxyChain.skipName=.* -config api.disablekey=false -config api.secure=false -config api.nohttps=true -config headless=true" &' >> /usr/local/bin/start.sh && \
+    echo 'echo "Waiting for ZAP to start..."' >> /usr/local/bin/start.sh && \
+    echo 'sleep 15' >> /usr/local/bin/start.sh && \
+    echo 'echo "Starting TCP proxy on port $PORT forwarding to ZAP on 8081..."' >> /usr/local/bin/start.sh && \
+    echo 'exec socat TCP4-LISTEN:$PORT,reuseaddr,fork TCP4:127.0.0.1:8081' >> /usr/local/bin/start.sh
 
 RUN chmod +x /usr/local/bin/start.sh
 
