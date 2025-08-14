@@ -3,16 +3,29 @@ FROM ghcr.io/zaproxy/zaproxy:stable
 # Switch to root to install packages
 USER root
 
-# Install gettext-base for envsubst
-RUN apt-get update && apt-get install -y gettext-base socat && rm -rf /var/lib/apt/lists/*
+# Install gettext-base for envsubst and curl for health checks
+RUN apt-get update && apt-get install -y gettext-base socat curl && rm -rf /var/lib/apt/lists/*
 
-# Create a simple TCP proxy that forwards all traffic to ZAP
+# Create a more robust startup script
 RUN echo '#!/bin/bash' > /usr/local/bin/start.sh && \
     echo 'set -e' >> /usr/local/bin/start.sh && \
     echo 'echo "Starting ZAP in headless mode..."' >> /usr/local/bin/start.sh && \
     echo 'su zap -c "zap.sh -daemon -host 127.0.0.1 -port 8081 -config api.key=aaef54aee7ea6b3df86e50f888a8d2c7 -config hud.enabled=false -config api.addrs.addr.name=.* -config api.addrs.addr.regex=true -config connection.followRedirect=false -config connection.postFormRedirects=false -config oast.service.callback.enabled=false -config network.proxy.chain.enabled=false -config network.connection.proxyChain.skipName=.* -config api.disablekey=false -config api.secure=false -config api.nohttps=true -config headless=true" &' >> /usr/local/bin/start.sh && \
-    echo 'echo "Waiting for ZAP to start..."' >> /usr/local/bin/start.sh && \
-    echo 'sleep 15' >> /usr/local/bin/start.sh && \
+    echo 'ZAP_PID=$!' >> /usr/local/bin/start.sh && \
+    echo 'echo "Waiting for ZAP to start (PID: $ZAP_PID)..."' >> /usr/local/bin/start.sh && \
+    echo 'for i in {1..60}; do' >> /usr/local/bin/start.sh && \
+    echo '    if curl -s -f http://127.0.0.1:8081/JSON/core/view/version/?apikey=aaef54aee7ea6b3df86e50f888a8d2c7 > /dev/null 2>&1; then' >> /usr/local/bin/start.sh && \
+    echo '        echo "ZAP health check passed on attempt $i"' >> /usr/local/bin/start.sh && \
+    echo '        break' >> /usr/local/bin/start.sh && \
+    echo '    fi' >> /usr/local/bin/start.sh && \
+    echo '    if [ $i -eq 60 ]; then' >> /usr/local/bin/start.sh && \
+    echo '        echo "ZAP failed to start after 60 attempts"' >> /usr/local/bin/start.sh && \
+    echo '        kill $ZAP_PID 2>/dev/null || true' >> /usr/local/bin/start.sh && \
+    echo '        exit 1' >> /usr/local/bin/start.sh && \
+    echo '    fi' >> /usr/local/bin/start.sh && \
+    echo '    echo "Health check attempt $i failed, waiting 2 seconds..."' >> /usr/local/bin/start.sh && \
+    echo '    sleep 2' >> /usr/local/bin/start.sh && \
+    echo 'done' >> /usr/local/bin/start.sh && \
     echo 'echo "Starting TCP proxy on port $PORT forwarding to ZAP on 8081..."' >> /usr/local/bin/start.sh && \
     echo 'exec socat TCP4-LISTEN:$PORT,reuseaddr,fork TCP4:127.0.0.1:8081' >> /usr/local/bin/start.sh
 
