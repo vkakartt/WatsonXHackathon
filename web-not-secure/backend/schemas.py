@@ -16,3 +16,10 @@ class UserResponse(BaseModel):
 class UserLogin(BaseModel):
     username: str
     password: str
+    
+class TaskResponse(BaseModel):
+    id: int
+    text: str
+    is_completed: bool
+
+    

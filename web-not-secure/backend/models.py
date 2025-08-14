@@ -7,5 +7,14 @@ class Users(database.Base):
     
     id = Column(Integer, primary_key=True)
     username = Column(String, unique=True)
-    email = Column(String, unique=True)
     password = Column(String)
+    tasks = relationship("Task", back_populates="user")    
+    
+class Tasks(database.Base):
+    __tablename__ = "tasks_unsecure"
+    
+    id = Column(Integer, primary_key=True)
+    text = Column(String, index=False)
+    is_completed = Column(Boolean, index=True, default=False)
+    user = relationship("Users", back_populates="tasks")
+    

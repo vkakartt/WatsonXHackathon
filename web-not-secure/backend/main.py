@@ -58,8 +58,8 @@ async def create_user(user: UserCreate, db: db_dependency):
     return {"message": "Successfully created user"}
 
 @app.get("/users", response_model=UserResponse)
-async def get_user(user_id: int, db: db_dependency, response: Response, access_token: Optional[str] = Cookie(default=None), refresh_token: Optional[str] = Cookie(default=None)):
-    user_id = verify_cookie(response, access_token, refresh_token)
+async def get_user(user_id: int, db: db_dependency, response: Response, access_token: Optional[str] = Cookie(default=None)):
+    user_id = verify_cookie(response, access_token)
     if not user_id:
         raise HTTPException(status_code=401, detail='User authentication token Expired')
     
@@ -82,16 +82,26 @@ async def login(response: Response, db: db_dependency, username: str = Form(...)
         user = result.first()
         
         if user:
-            access_token = create_access_token(user.id)
-            refresh_token = create_access_token(user.id, timedelta(days=3))
+            access_token = create_access_token(user.id, timedelta(days=3))
             response.set_cookie(key="access_token", value=access_token, httponly=False, secure=False, samesite="lax")
-            response.set_cookie(key="refresh_token", value=refresh_token, httponly=False, secure=False, samesite="lax")
             return {"message": "Login successful", "redirect": "http://localhost:3000/home"}
         else:
             raise HTTPException(400, "Invalid user credentials.")
     except Exception as e:
         print(f"SQL Error: {e}")
         raise HTTPException(400, "Invalid User Credentials")
+    
+@app.get("/tasks", response_model=List[TaskResponse])
+async def get_tasks(response: Response, db: db_dependency, access_token: Optional[str] = Cookie(default=None)):
+    user_id = verify_cookie(response, access_token)
+    if not user_id:
+        raise HTTPException(status_code=401, detail='User authentication token Expired')
+    
+    user = db.query(models.Users).filter(models.Users.id == user_id).first()
+    if not user:
+        raise HTTPException(status_code=404, detail='User not found.')
+    return user.tasks
+
     
 def get_hashed_password(plain_text_password):
     # Hash a password for the first time
@@ -120,8 +130,8 @@ def decode_jwt(token: str):
     except:
         return None, False
 
-def verify_cookie(response: Response, access_token: Optional[str] = Cookie(default=None), refresh_token: Optional[str] = Cookie(default=None)):
-    if not access_token or not refresh_token:
+def verify_cookie(response: Response, access_token: Optional[str] = Cookie(default=None)):
+    if not access_token:
         return None
     
     # Try to decode access token first
@@ -129,15 +139,7 @@ def verify_cookie(response: Response, access_token: Optional[str] = Cookie(defau
     if success and result and "user_id" in result:
         return result["user_id"]
     
-    # If access token failed, try refresh token
-    refresh, refresh_success = decode_jwt(refresh_token)
-    if refresh_success and refresh and "user_id" in refresh:
-        # Create new access token using user_id from refresh token
-        new_access_token = create_access_token(refresh["user_id"])
-        response.set_cookie(key="access_token", value=new_access_token, httponly=True, secure=False, samesite="lax")
-        return refresh["user_id"]
-    
-    # Both tokens failed - clear cookies
+    # token failed - clear cookies
     response.delete_cookie(key="access_token")
-    response.delete_cookie(key="refresh_token")
     return None
+
