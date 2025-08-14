@@ -1,17 +1,38 @@
 # Use ZAP base image
 FROM ghcr.io/zaproxy/zaproxy:stable
 
-# Start both ZAP and NGINX using bash to handle inline logic
-CMD zap.sh -daemon \
-    -host 0.0.0.0 \
-    -port $PORT \
-    -config api.key=aaef54aee7ea6b3df86e50f888a8d2c7 \
-    -config hud.enabled=false \
-    -config api.addrs.addr.name=.* \
-    -config api.addrs.addr.regex=true \
-    -config connection.followRedirect=false \
-	-config connection.postFormRedirects=false \
-    -config oast.service.callback.enabled=false \
-    -config network.proxy.chain.enabled=false \
-    -config network.connection.proxyChain.skipName=.* \
-    -config api.disablekey=false
+# Install nginx
+USER root
+RUN apt-get update && apt-get install -y nginx gettext-base && \
+    rm -rf /var/lib/apt/lists/*
+
+# Create nginx config template
+RUN echo 'server {\n\
+    listen ${PORT};\n\
+    location / {\n\
+        proxy_pass http://127.0.0.1:8081;\n\
+        proxy_set_header Host $host;\n\
+        proxy_set_header X-Forwarded-Proto $scheme;\n\
+    }\n\
+}' > /etc/nginx/conf.d/default.conf.template
+
+# Remove default nginx config
+RUN rm /etc/nginx/sites-enabled/default
+
+# Create startup script
+RUN echo '#!/bin/bash\n\
+# Start ZAP in background\n\
+su zap -c "zap.sh -daemon -host 127.0.0.1 -port 8081 -config api.key=aaef54aee7ea6b3df86e50f888a8d2c7 -config hud.enabled=false -config api.addrs.addr.name=.* -config api.addrs.addr.regex=true -config connection.followRedirect=false -config connection.postFormRedirects=false -config oast.service.callback.enabled=false -config network.proxy.chain.enabled=false -config network.connection.proxyChain.skipName=.* -config api.disablekey=false" &\n\
+\n\
+# Wait for ZAP to start\n\
+sleep 10\n\
+\n\
+# Generate nginx config with PORT substitution\n\
+envsubst < /etc/nginx/conf.d/default.conf.template > /etc/nginx/conf.d/default.conf\n\
+\n\
+# Start nginx\n\
+nginx -g "daemon off;"' > /usr/local/bin/start.sh
+
+RUN chmod +x /usr/local/bin/start.sh
+
+CMD ["/usr/local/bin/start.sh"]
