@@ -11,8 +11,8 @@ RUN echo 'server {\n\
     listen ${PORT};\n\
     location / {\n\
         proxy_pass http://127.0.0.1:8081;\n\
-        proxy_set_header Host $host;\n\
-        proxy_set_header X-Forwarded-Proto $scheme;\n\
+        proxy_set_header Host \$host;\n\
+        proxy_set_header X-Forwarded-Proto \$scheme;\n\
     }\n\
 }' > /etc/nginx/conf.d/default.conf.template
 
