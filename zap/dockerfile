@@ -1,8 +1,19 @@
 # Use ZAP base image
 FROM ghcr.io/zaproxy/zaproxy:stable
 
-# Create startup script that uses environment PORT
-RUN printf '#!/bin/bash\necho "Starting ZAP on port $PORT..."\nzap.sh -daemon \\\n    -host 0.0.0.0 \\\n    -port $PORT \\\n    -config api.key=aaef54aee7ea6b3df86e50f888a8d2c7 \\\n    -config hud.enabled=false \\\n    -config api.addrs.addr.name=.* \\\n    -config api.addrs.addr.regex=true \\\n    -config connection.followRedirect=false \\\n    -config connection.postFormRedirects=false \\\n    -config oast.service.callback.enabled=false \\\n    -config network.proxy.chain.enabled=false \\\n    -config network.connection.proxyChain.skipName=.* \\\n    -config api.disablekey=false \\\n    -config connection.timeoutInSecs=60 \\\n    -config api.secure=false\n' > /usr/local/bin/start.sh
+# Install nginx and curl
+USER root
+RUN apt-get update && apt-get install -y nginx curl && \
+    rm -rf /var/lib/apt/lists/*
+
+# Remove default nginx config and any auto-redirect configs
+RUN rm -f /etc/nginx/sites-enabled/default /etc/nginx/conf.d/default.conf /etc/nginx/sites-available/default
+
+# Create nginx config template that handles requests directly (no redirects)
+RUN printf 'server {\n    listen PORT_PLACEHOLDER;\n    server_name _;\n    \n    # Disable any automatic redirects\n    error_page 497 =200 $request_uri;\n    \n    location / {\n        proxy_pass http://127.0.0.1:8081;\n        proxy_set_header Host $host;\n        proxy_set_header X-Real-IP $remote_addr;\n        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;\n        proxy_set_header X-Forwarded-Proto $scheme;\n        \n        # Important: Disable proxy redirects\n        proxy_redirect off;\n        \n        # Handle ZAP API properly\n        proxy_pass_header Server;\n        proxy_set_header X-Scheme $scheme;\n    }\n}' > /etc/nginx/nginx.conf.template
+
+# Create startup script
+RUN printf '#!/bin/bash\nset -e\n\necho "Starting ZAP..."\nsu zap -c "zap.sh -daemon -host 127.0.0.1 -port 8081 -config api.key=aaef54aee7ea6b3df86e50f888a8d2c7 -config hud.enabled=false -config api.addrs.addr.name=.* -config api.addrs.addr.regex=true -config connection.followRedirect=false -config connection.postFormRedirects=false -config oast.service.callback.enabled=false -config network.proxy.chain.enabled=false -config network.connection.proxyChain.skipName=.* -config api.disablekey=false" &\n\necho "Waiting for ZAP to start..."\nfor i in {1..30}; do\n    if curl -s http://127.0.0.1:8081/JSON/core/view/version/ > /dev/null 2>&1; then\n        echo "ZAP started successfully"\n        break\n    fi\n    sleep 2\ndone\n\necho "Creating nginx config for port $PORT..."\nsed "s/PORT_PLACEHOLDER/$PORT/g" /etc/nginx/nginx.conf.template > /etc/nginx/conf.d/default.conf\n\necho "Testing nginx config..."\nnginx -t\n\necho "Starting nginx on port $PORT..."\nnginx -g "daemon off;"\n' > /usr/local/bin/start.sh
 
 RUN chmod +x /usr/local/bin/start.sh
 
