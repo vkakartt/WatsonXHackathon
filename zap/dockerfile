@@ -2,4 +2,4 @@ FROM ictu/zap2docker-weekly
 
 EXPOSE 8080
 
-CMD ["zap.sh", "-daemon", "-port", "8080", "-host", "0.0.0.0", "-config", "api.key=aaef54aee7ea6b3df86e50f888a8d2c7", "-config", "api.addrs.addr.name=.*", "-config", "api.addrs.addr.regex=true"]
+CMD ["zap.sh", "-daemon", "-port", "8080", "-host", "0.0.0.0", "-config", "api.key=aaef54aee7ea6b3df86e50f888a8d2c7", "-config", "api.addrs.addr.name=.*", "-config", "api.addrs.addr.regex=true", "-config", "oast.service.callback.enabled=false"]
