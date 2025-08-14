@@ -1,3 +1,30 @@
+# Use ZAP base image
 FROM ghcr.io/zaproxy/zaproxy:stable
 
-CMD ["sh", "-c", "zap.sh -daemon -port $PORT -host 0.0.0.0 -config api.key=aaef54aee7ea6b3df86e50f888a8d2c7 -config hud.enabled=false -config api.addrs.addr.name=.* -config api.addrs.addr.regex=true -config httprestrictions.httpSender.followRedirect=false -config oast.service.callback.enabled=false -config network.proxy.chain.enabled=false -config network.connection.proxyChain.skipName=.* -config api.disablekey=false"]
+USER root
+
+# Install nginx
+RUN apt-get update && apt-get install -y nginx && rm -rf /var/lib/apt/lists/*
+
+# Copy nginx config to the correct location
+COPY nginx.conf /etc/nginx/nginx.conf
+
+# Ensure the PORT env from Render is passed in
+ENV ZAP_PORT=8080
+ENV PORT=443
+
+# Start both ZAP and NGINX inline
+CMD zap.sh -daemon \
+    -host 127.0.0.1 \
+    -port $ZAP_PORT \
+    -config api.key=aaef54aee7ea6b3df86e50f888a8d2c7 \
+    -config hud.enabled=false \
+    -config api.addrs.addr.name=.* \
+    -config api.addrs.addr.regex=true \
+    -config httprestrictions.httpSender.followRedirect=false \
+    -config oast.service.callback.enabled=false \
+    -config network.proxy.chain.enabled=false \
+    -config network.connection.proxyChain.skipName=.* \
+    -config api.disablekey=false & \
+    sleep 10 && \
+    nginx -g "daemon off;"
