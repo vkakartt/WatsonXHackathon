@@ -1,14 +1,13 @@
+from typing import Optional
 from pydantic import BaseModel
 
 class UserCreate(BaseModel):
     username: str
     password: str
-    email: str
 
 class UserResponse(BaseModel):
     id: int
     username: str
-    email: str
     
     class Config:
         from_attributes = True
@@ -22,4 +21,7 @@ class TaskResponse(BaseModel):
     text: str
     is_completed: bool
 
-    
+class TaskUpdateInfo(BaseModel):
+    id: Optional[int] = None
+    text: Optional[str] = None
+    is_completed: Optional[bool] = None

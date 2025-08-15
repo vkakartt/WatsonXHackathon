@@ -36,12 +36,9 @@ SECRET_KEY = "aaef54aee7ea6b3df86e50f888a8d2c7"
 ALGORITHM = "HS256"
 ACCESS_TOKEN_EXPIRE_MINUTES = 30
 
+
 @app.post("/users")
 async def create_user(user: UserCreate, db: db_dependency):
-    # Check for existing email
-    if db.query(models.Users).filter(models.Users.email == user.email).first():
-        raise HTTPException(status_code=400, detail='Email already exists.')
-    
     # Check for existing username
     if db.query(models.Users).filter(models.Users.username == user.username).first():
         raise HTTPException(status_code=400, detail='Username is taken.')
@@ -49,7 +46,6 @@ async def create_user(user: UserCreate, db: db_dependency):
     # Create user with auto-generated user_id
     db_user = models.Users(
         username=user.username, 
-        email=user.email, 
         password=get_hashed_password(user.password)
     )
     db.add(db_user)
@@ -58,7 +54,7 @@ async def create_user(user: UserCreate, db: db_dependency):
     return {"message": "Successfully created user"}
 
 @app.get("/users", response_model=UserResponse)
-async def get_user(user_id: int, db: db_dependency, response: Response, access_token: Optional[str] = Cookie(default=None)):
+async def get_user(db: db_dependency, response: Response, access_token: Optional[str] = Cookie(default=None)):
     user_id = verify_cookie(response, access_token)
     if not user_id:
         raise HTTPException(status_code=401, detail='User authentication token Expired')
@@ -69,12 +65,11 @@ async def get_user(user_id: int, db: db_dependency, response: Response, access_t
     return user
 
 @app.post("/login")
-async def login(response: Response, db: db_dependency, username: str = Form(...), password: str = Form(...)):
-    # INTENTIONALLY VULNERABLE - DO NOT USE IN PRODUCTION
-    hashedPwd = get_hashed_password(password)
+async def login(response: Response, db: db_dependency, userdata: UserLogin):
+    hashedPwd = get_hashed_password(userdata.password)
     
     # Even more vulnerable - remove password hashing for easier testing
-    query = f"SELECT * FROM users WHERE username = '{username}' AND password = '{password}'"
+    query = f"SELECT * FROM users_unsecure WHERE username = '{userdata.username}' AND password = '{hashedPwd}'"
     print(f"Executing query: {query}")  # Debug output
     
     try:
@@ -92,20 +87,51 @@ async def login(response: Response, db: db_dependency, username: str = Form(...)
         raise HTTPException(400, "Invalid User Credentials")
     
 @app.get("/tasks", response_model=List[TaskResponse])
-async def get_tasks(response: Response, db: db_dependency, access_token: Optional[str] = Cookie(default=None)):
+async def get_tasks(
+    db: db_dependency,
+    response: Response,
+    access_token: Optional[str] = Cookie(default=None)
+):
     user_id = verify_cookie(response, access_token)
     if not user_id:
-        raise HTTPException(status_code=401, detail='User authentication token Expired')
-    
+        raise HTTPException(401, "Unauthorized")
+
     user = db.query(models.Users).filter(models.Users.id == user_id).first()
     if not user:
-        raise HTTPException(status_code=404, detail='User not found.')
+        raise HTTPException(status_code=404, detail="User not found.")
+
     return user.tasks
 
+@app.post("/tasks")
+async def update_tasks(db: db_dependency, taskinfo: TaskUpdateInfo, response: Response, access_token: Optional[str] = Cookie(default=None)):
+    if taskinfo.id:
+        task = db.query(models.Tasks).filter(models.Tasks.id == taskinfo.id).first()
+        if taskinfo.text is not None:
+            task.text = taskinfo.text
+        if taskinfo.is_completed is not None:
+            task.is_completed = taskinfo.is_completed
+        db.commit()
+    else:
+        user_id = verify_cookie(response, access_token)
+        if not taskinfo.text or not user_id:
+            raise HTTPException(404, "Error: Cannot create new task wihtout txt and userid")
+        db_task = models.Tasks(
+            text=taskinfo.text,
+            is_completed=taskinfo.is_completed is not None and taskinfo.is_completed,
+            user_id=user_id
+        )
+        db.add(db_task)
+        db.commit()
+        db.refresh(db_task)
+    
+@app.delete("/tasks/{task_id}")
+async def delete_task(db: db_dependency, task_id: int):
+    db.execute(text("DELETE FROM tasks_unsecure WHERE id = '" + str(task_id) + "';"))
+    db.commit()
+    return {"Success": "Deleted message"}
+    
     
 def get_hashed_password(plain_text_password):
-    # Hash a password for the first time
-    #   (Using bcrypt, the salt is saved into the hash itself)
     password_bytes = plain_text_password.encode('utf-8')
     return hashlib.sha256(password_bytes).hexdigest()
 
