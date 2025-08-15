@@ -18,7 +18,7 @@ import hashlib
 
 app = FastAPI()
 origins = [
-    "*"
+    "http://localhost:3000"
 ]
 app.add_middleware(
     CORSMiddleware,
@@ -36,21 +36,25 @@ SECRET_KEY = "aaef54aee7ea6b3df86e50f888a8d2c7"
 ALGORITHM = "HS256"
 ACCESS_TOKEN_EXPIRE_MINUTES = 30
 
-
 @app.post("/users")
 async def create_user(user: UserCreate, db: db_dependency):
-    # Check for existing username
-    if db.query(models.Users).filter(models.Users.username == user.username).first():
+    # Check for existing username (raw SQL)
+    check_username_sql = f"SELECT 1 FROM users_unsecure WHERE username = '{user.username}' LIMIT 1"
+    result = db.connection().exec_driver_sql(check_username_sql)
+    if result.first():
         raise HTTPException(status_code=400, detail='Username is taken.')
-    
-    # Create user with auto-generated user_id
-    db_user = models.Users(
-        username=user.username, 
-        password=get_hashed_password(user.password)
-    )
-    db.add(db_user)
+
+    hashed_password = get_hashed_password(user.password)
+    # Insert new user (raw SQL)
+    insert_user_sql = f"""
+        INSERT INTO users_unsecure (username, password)
+        VALUES ('{user.username}', '{hashed_password}')
+        RETURNING user_id
+    """
+
+    result = db.connection().exec_driver_sql(insert_user_sql)
     db.commit()
-    db.refresh(db_user)  # This gets the auto-generated user_id
+
     return {"message": "Successfully created user"}
 
 @app.get("/users", response_model=UserResponse)
@@ -59,10 +63,11 @@ async def get_user(db: db_dependency, response: Response, access_token: Optional
     if not user_id:
         raise HTTPException(status_code=401, detail='User authentication token Expired')
     
-    user = db.query(models.Users).filter(models.Users.id == user_id).first()
+    result = db.connection().exec_driver_sql(f"SELECT * FROM users_unsecure WHERE id = '{user_id}' LIMIT 1")
+    user = result.mappings().first()
     if not user:
         raise HTTPException(status_code=404, detail='User not found.')
-    return user
+    return {"id": user['id'], "username": user['username']}
 
 @app.post("/login")
 async def login(response: Response, db: db_dependency, userdata: UserLogin):
@@ -70,18 +75,17 @@ async def login(response: Response, db: db_dependency, userdata: UserLogin):
     
     # Even more vulnerable - remove password hashing for easier testing
     query = f"SELECT * FROM users_unsecure WHERE username = '{userdata.username}' AND password = '{hashedPwd}'"
-    print(f"Executing query: {query}")  # Debug output
     
     try:
-        result = db.execute(text(query))
+        result = db.connection().exec_driver_sql(query)
         user = result.first()
         
         if user:
             access_token = create_access_token(user.id, timedelta(days=3))
             response.set_cookie(key="access_token", value=access_token, httponly=False, secure=False, samesite="lax")
-            return {"message": "Login successful", "redirect": "http://localhost:3000/home"}
+            return {"message": "Login successful"}
         else:
-            raise HTTPException(400, "Invalid user credentials.")
+            raise HTTPException(400, "Invalid User Credentials.")
     except Exception as e:
         print(f"SQL Error: {e}")
         raise HTTPException(400, "Invalid User Credentials")
@@ -96,37 +100,67 @@ async def get_tasks(
     if not user_id:
         raise HTTPException(401, "Unauthorized")
 
-    user = db.query(models.Users).filter(models.Users.id == user_id).first()
+    # Insecure raw SQL without text()
+    result = db.connection().exec_driver_sql(f"SELECT * FROM users_unsecure WHERE id = {user_id}")
+    user = result.fetchone()
     if not user:
         raise HTTPException(status_code=404, detail="User not found.")
 
-    return user.tasks
+    # Get tasks for user
+    tasks_result = db.connection().exec_driver_sql(f"SELECT * FROM tasks_unsecure WHERE user_id = {user_id}")
+    tasks = tasks_result.fetchall()
+
+    # Map tasks to response model
+    return [
+        {"id": row.id, "text": row.text, "is_completed": row.is_completed}
+        for row in tasks
+    ]
+
 
 @app.post("/tasks")
-async def update_tasks(db: db_dependency, taskinfo: TaskUpdateInfo, response: Response, access_token: Optional[str] = Cookie(default=None)):
+async def update_tasks(
+    db: db_dependency,
+    taskinfo: TaskUpdateInfo,
+    response: Response,
+    access_token: Optional[str] = Cookie(default=None)
+):
     if taskinfo.id:
-        task = db.query(models.Tasks).filter(models.Tasks.id == taskinfo.id).first()
+        # Update existing task
         if taskinfo.text is not None:
-            task.text = taskinfo.text
+            db.connection().exec_driver_sql(f"""
+                UPDATE tasks_unsecure 
+                SET text = '{taskinfo.text}' 
+                WHERE id = {taskinfo.id}
+            """)
         if taskinfo.is_completed is not None:
-            task.is_completed = taskinfo.is_completed
+            db.connection().exec_driver_sql(f"""
+                UPDATE tasks_unsecure 
+                SET is_completed = {taskinfo.is_completed} 
+                WHERE id = {taskinfo.id}
+            """)
         db.commit()
     else:
+        # Create new task
         user_id = verify_cookie(response, access_token)
         if not taskinfo.text or not user_id:
-            raise HTTPException(404, "Error: Cannot create new task wihtout txt and userid")
-        db_task = models.Tasks(
-            text=taskinfo.text,
-            is_completed=taskinfo.is_completed is not None and taskinfo.is_completed,
-            user_id=user_id
-        )
-        db.add(db_task)
+            raise HTTPException(404, "Error: Cannot create new task without text and user_id")
+
+        is_completed = taskinfo.is_completed is not None and taskinfo.is_completed
+
+        db.connection().exec_driver_sql(f"""
+            INSERT INTO tasks_unsecure (text, is_completed, user_id)
+            VALUES ('{taskinfo.text}', {is_completed}, {user_id})
+        """)
         db.commit()
-        db.refresh(db_task)
+        
+@app.post("/logout")
+async def logout(response: Response, access_token: Optional[str] = Cookie(default=None)):
+    response.delete_cookie(key="access_token")
+    return {"Success": "Logged out successfully."}
     
 @app.delete("/tasks/{task_id}")
 async def delete_task(db: db_dependency, task_id: int):
-    db.execute(text("DELETE FROM tasks_unsecure WHERE id = '" + str(task_id) + "';"))
+    db.connection().exec_driver_sql("DELETE FROM tasks_unsecure WHERE id = '" + str(task_id) + "';")
     db.commit()
     return {"Success": "Deleted message"}
     
