@@ -8,5 +8,10 @@ orchestrate agents import -f SQL_Injection_Agent/uv-config.yaml
 orchestrate agents import -f Zap_Agent/uv-config.yaml
 orchestrate agents import -f XSS_Agent/uv-config.yaml
 orchestrate agents import -f Command_Injection_Detection_Agent/uv-config.yaml
+orchestrate agents import -f LFI_Agent/uv-config.yaml
+orchestrate agents import -f RFI_Agent/uv-config.yaml
+orchestrate agents import -f XXE_Agent/uv-config.yaml
+orchestrate agents import -f Directory_Traversal_Agent/uv-config.yaml
+orchestrate agents import -f XPATH_Injection_Agent/uv-config.yaml
 
 orchestrate agents import -f Cybersecurity_Manager/uv-config.yaml
