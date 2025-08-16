@@ -130,9 +130,19 @@ async def login(response: Response, user_credentials: UserLogin, db: db_dependen
 
 @app.post("/logout")
 async def logout(response: Response):
-    response.delete_cookie(key="access_token");
-    response.delete_cookie(key="refresh_token");
-    return {"message":"Logged out successfully"}
+    response.delete_cookie(
+        key="access_token",
+        httponly=True,
+        secure=True,
+        samesite="None"
+    )
+    response.delete_cookie(
+        key="refresh_token", 
+        httponly=True,
+        secure=True,
+        samesite="None"
+    )
+    return {"message": "Logged out successfully"}
 
 @app.post("/orchestrate/thread")
 async def create_thread(db: db_dependency):

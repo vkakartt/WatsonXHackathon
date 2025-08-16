@@ -85,8 +85,6 @@
   max-width: 70%;
 }
 
-html,body{overflow-y: scroll; position: absolute}
-
 .static{
 
   &.text {
