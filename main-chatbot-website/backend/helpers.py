@@ -70,7 +70,7 @@ def start_env():
         COMMAND,
         stdin=asyncio.subprocess.PIPE,
         stdout=asyncio.subprocess.PIPE,
-        stderr=asyncio.subprocess.PIPE,
+        stderr=asyncio.subprocess.STDOUT,
     )
     
     if process.poll() is None:
