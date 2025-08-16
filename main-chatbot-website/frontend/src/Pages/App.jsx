@@ -7,7 +7,7 @@ import {ChatBot} from './ChatBotPage'
 import {AboutPage, TypesVulnerabilitiesPage, FunctionalityPage} from './StaticPages'
 import '../Style/App.css';
 
-const BACKEND_ADDRESS = "http://localhost:8000";
+const BACKEND_ADDRESS = "https://tt-watsonxhackathon-backend.onrender.com";
 
 function Routes() {
   const element = useRoutes([
