@@ -14,23 +14,31 @@ SECRET_KEY = "aaef54aee7ea6b3df86e50f888a8d2c7"
 ALGORITHM = "HS256"
 ACCESS_TOKEN_EXPIRE_MINUTES = 30
 
-AUTH_TOKEN = "eyJraWQiOiIyMDE5MDcyNCIsImFsZyI6IlJTMjU2In0.eyJpYW1faWQiOiJJQk1pZC02OTIwMDBZWEZLIiwiaWQiOiJJQk1pZC02OTIwMDBZWEZLIiwicmVhbG1pZCI6IklCTWlkIiwianRpIjoiY2VjMjEwNjctODhiZi00YjRlLTg1OTktZGQyZTdlNzU2MWU2IiwiaWRlbnRpZmllciI6IjY5MjAwMFlYRksiLCJnaXZlbl9uYW1lIjoiVmVlciIsImZhbWlseV9uYW1lIjoiS2FrYXIiLCJuYW1lIjoiVmVlciBLYWthciIsImVtYWlsIjoidmVlci5rYWthckB0cmFuc2Zvcm1hdGVjaC5jb20iLCJzdWIiOiJ2ZWVyLmtha2FyQHRyYW5zZm9ybWF0ZWNoLmNvbSIsImF1dGhuIjp7InN1YiI6InZlZXIua2FrYXJAdHJhbnNmb3JtYXRlY2guY29tIiwiaWFtX2lkIjoiSUJNaWQtNjkyMDAwWVhGSyIsIm5hbWUiOiJWZWVyIEtha2FyIiwiZ2l2ZW5fbmFtZSI6IlZlZXIiLCJmYW1pbHlfbmFtZSI6Iktha2FyIiwiZW1haWwiOiJ2ZWVyLmtha2FyQHRyYW5zZm9ybWF0ZWNoLmNvbSJ9LCJhY2NvdW50Ijp7InZhbGlkIjp0cnVlLCJic3MiOiJlOGM2ZmVlNTRmNDE0MmIyYjFiOWJhYzY0OTRjZmJjOCIsImltc191c2VyX2lkIjoiMTQyNTUzMzMiLCJmcm96ZW4iOnRydWUsImltcyI6IjI5OTY5MzgifSwiaWF0IjoxNzU1MDIwMjk2LCJleHAiOjE3NTUwMjM4OTYsImlzcyI6Imh0dHBzOi8vaWFtLmNsb3VkLmlibS5jb20vaWRlbnRpdHkiLCJncmFudF90eXBlIjoidXJuOmlibTpwYXJhbXM6b2F1dGg6Z3JhbnQtdHlwZTphcGlrZXkiLCJzY29wZSI6ImlibSBvcGVuaWQiLCJjbGllbnRfaWQiOiJkZWZhdWx0IiwiYWNyIjoxLCJhbXIiOlsicHdkIl19.hFMcinOB1noQA0J7bIcHUQsbseaWlaC7CdMRkM7tZ2gfI3XsDP_qn6FI0OfQ7136QmV2bzG7V_IlYLgjuSQy5Pd8GfUX0OEQtjWo3kdXc1Q2k6cfcw6llQlq4A_IbN7-0aCRnSaZ4ZzZS2KPipuKJ3wUoVonWg6n8fVKGMrNLUUv_tcuWj6AQyX3uoP088l1ghgVGJF5ilpd21NCZlzbUtH_tL0w_TOTm1__jvE1m1aDftD_Z9gkDzGEFZkc3OU2SqLrDYKZeUnvdpHQ91iaShVCI09_ndFlyC-zOuzEzzj266kMqaHJGdYXVDLTHrE7_ZrpTSVjcLRBrN4qKLaSqQ"
+AUTH_TOKEN = "eyJraWQiOiIyMDE5MDcyNCIsImFsZyI6IlJTMjU2In0.eyJpYW1faWQiOiJJQk1pZC02OTIwMDBZWEZLIiwiaWQiOiJJQk1pZC02OTIwMDBZWEZLIiwicmVhbG1pZCI6IklCTWlkIiwianRpIjoiMzIzYWEzOTYtYjllZS00MTVjLTk5OGEtMzQ5ZmIyNjMyYjQ1IiwiaWRlbnRpZmllciI6IjY5MjAwMFlYRksiLCJnaXZlbl9uYW1lIjoiVmVlciIsImZhbWlseV9uYW1lIjoiS2FrYXIiLCJuYW1lIjoiVmVlciBLYWthciIsImVtYWlsIjoidmVlci5rYWthckB0cmFuc2Zvcm1hdGVjaC5jb20iLCJzdWIiOiJ2ZWVyLmtha2FyQHRyYW5zZm9ybWF0ZWNoLmNvbSIsImF1dGhuIjp7InN1YiI6InZlZXIua2FrYXJAdHJhbnNmb3JtYXRlY2guY29tIiwiaWFtX2lkIjoiSUJNaWQtNjkyMDAwWVhGSyIsIm5hbWUiOiJWZWVyIEtha2FyIiwiZ2l2ZW5fbmFtZSI6IlZlZXIiLCJmYW1pbHlfbmFtZSI6Iktha2FyIiwiZW1haWwiOiJ2ZWVyLmtha2FyQHRyYW5zZm9ybWF0ZWNoLmNvbSJ9LCJhY2NvdW50Ijp7InZhbGlkIjp0cnVlLCJic3MiOiJlOGM2ZmVlNTRmNDE0MmIyYjFiOWJhYzY0OTRjZmJjOCIsImltc191c2VyX2lkIjoiMTQyNTUzMzMiLCJmcm96ZW4iOnRydWUsImltcyI6IjI5OTY5MzgifSwiaWF0IjoxNzU1MzU2OTM4LCJleHAiOjE3NTUzNjA1MzgsImlzcyI6Imh0dHBzOi8vaWFtLmNsb3VkLmlibS5jb20vaWRlbnRpdHkiLCJncmFudF90eXBlIjoidXJuOmlibTpwYXJhbXM6b2F1dGg6Z3JhbnQtdHlwZTphcGlrZXkiLCJzY29wZSI6ImlibSBvcGVuaWQiLCJjbGllbnRfaWQiOiJkZWZhdWx0IiwiYWNyIjoxLCJhbXIiOlsicHdkIl19.Oiga2cq1WsfzIJe5JXUUFKTOlWQioK4f_6VaHj6AZfC7l00Tl3HrQE35qOhisun5yw91vexaWYqPb-ohqpGh3ov18e0TkVncu-VyguQP7Oe6PfCC4ijgAIRbsXacA4wN-u7fWdXy9rrMM506w3y8BQWrKmxtfDfV0i-3qs97gnn9W1Sk3eSTljgD7AaXUmcGvt-7dIBNm22o0OelyNlD4XR1s5CbAdlLS3mKlo_n6tINiGqjQCF-iaVbcrN0yPhbs3cpOqYTMPZkzAO2B8NF0bJaaSCGOCDJ_hVOjt4Nk5PgT03DPEebQFsQd05sNvo8fZGFZrobyOMIOkqf9G2xhw"
 BASE_URL = "https://api.ca-tor.watson-orchestrate.cloud.ibm.com/instances/1a32ff28-f8a6-416a-a329-07d5b40715c9/v1"
 
 ZAP_API_KEY = "aaef54aee7ea6b3df86e50f888a8d2c7"
-ZAP_API_URL = "https://watsonxhackathon.onrender.com"
+ZAP_API_URL = "http://127.0.0.1:8090"
 
 async def makeApiCall(url: str, method, headers=None, params=None, payload=None):
+    global AUTH_TOKEN
     if headers:
         headers['Authorization'] = f"Bearer {AUTH_TOKEN}"
     else:
         headers = {"Authorization" : f"Bearer {AUTH_TOKEN}"}
 
     # yes this is necessary
-    for i in range(30): 
-        if i == 2 and not start_env():
+    for i in range(5): 
+        if i == 3 and not start_env():
             print("Error: could not start orchestrate env")
             raise HTTPException(400, "unknown user error")
+        if i == 2:
+            headers2 = {"Content-Type": "application/x-www-form-urlencoded"}
+            data = {"grant_type":"urn:ibm:params:oauth:grant-type:apikey", "apikey":"TFQpwuwvqQiOcBceK3uwRr8kmaDfZ6dzV_6C9sklYY8o"}
+            key_response = requests.post("https://iam.cloud.ibm.com/identity/token", headers=headers2, data=data)
+            key_response_json = key_response.json()
+            if key_response_json['access_token']:
+                AUTH_TOKEN=key_response_json['access_token']
         try:
             if method == "GET":
                 response = requests.get(BASE_URL + url, headers=headers, params=params)
@@ -125,50 +133,3 @@ def verify_cookie(response: Response, access_token: Optional[str] = Cookie(defau
     response.delete_cookie(key="access_token")
     response.delete_cookie(key="refresh_token")
     return None
-
-async def start_zap():
-    base_dir = os.path.dirname(os.path.abspath(__file__))
-    zap_path = os.path.join(base_dir, "ZAP_2.16.1/zap.bat")
-    
-    if not is_zap_running():
-        # Kill existing processes
-        try:
-            subprocess.run(["taskkill", "/F", "/IM", "java.exe"], 
-                            capture_output=True, timeout=5)
-            time.sleep(1)
-        except:
-            pass
- 
-        # Start ZAP with speed-optimized settings
-        os.chdir(os.path.join(base_dir, "ZAP_2.16.1"))
-        zap_process = subprocess.Popen([
-            zap_path,
-            "-daemon",
-            "-port",
-            "8090",
-            "-host",
-            "127.0.0.1",
-            "-config",
-            "api.key=" + ZAP_API_KEY
-        ], stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True)
-        
-        def read_and_print_output(pipe, stream_name):
-            for line in iter(pipe.readline, ''):  # Iterate over lines from the pipe
-                # print(f"[{stream_name}] {line.strip()}", flush=True) # Print to console
-                pass
-            pipe.close()
-
-
-        stdout_thread = threading.Thread(target=read_and_print_output, args=(zap_process.stdout, "stdout"))
-        stderr_thread = threading.Thread(target=read_and_print_output, args=(zap_process.stderr, "stderr"))
-
-        stdout_thread.start()
-        stderr_thread.start()
-        
-def is_zap_running():
-    print("oh no")
-    try:
-        response = requests.get(f"{ZAP_API_URL}/JSON/core/view/version/?apikey={ZAP_API_KEY}", timeout=3)
-        return response.status_code == 200
-    except:
-        return False

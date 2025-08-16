@@ -1,3 +1,4 @@
+from typing import Optional
 from pydantic import BaseModel
 
 class UserCreate(BaseModel):
@@ -7,7 +8,7 @@ class UserCreate(BaseModel):
 class UserResponse(BaseModel):
     id: int
     username: str
-    tenant_ids: list[str]
+    thread_ids: list[str]
     
     class Config:
         from_attributes = True
@@ -18,4 +19,4 @@ class UserLogin(BaseModel):
     
 class MessageInfo(BaseModel):
     message: str
-    thread_id: str
+    thread_id: Optional[str]=None

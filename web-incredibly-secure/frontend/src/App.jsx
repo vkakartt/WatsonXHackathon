@@ -1,7 +1,7 @@
 import logo from './logo.svg';
 import { Link, useRoutes, BrowserRouter as Router, useNavigate, useLocation } from 'react-router';
 import { Outlet } from 'react-router-dom'
-import React, { useEffect } from 'react'
+import React, { useEffect, useState, useRef } from 'react'
 import {LoginPage, CreateUserPage} from './Pages/LoginPages'
 import {ChatBot} from './Pages/ChatBotPage'
 import {AboutPage, TypesVulnerabilitiesPage, FunctionalityPage} from './Pages/StaticPages'
@@ -40,14 +40,25 @@ function App() {
 function Banner() {
   const navigate = useNavigate();
   const location = useLocation();
+  const [username, setUsername] = useState('');
+  const [showDropdown, setShowDropdown] = useState(false);
+  const dropdownRef = useRef(null);
   
-  useEffect(() => {
-    const currentPath = location.pathname;
-    if (currentPath !== '/') {
-      return;
+  const handleLogout = async () => {
+    try {
+      await fetchData('/logout', 'POST');
+      navigate("/login");
+    } catch (e) {
+      console.log("Error: could not logout.");
     }
-    fetchData('/users', 'GET').then(() => {
-      navigate("/chat");
+  }
+
+  useEffect(() => {
+    fetchData('/users', 'GET').then((response) => {
+      setUsername(response.username);
+      if (location.pathname === '/') {
+        navigate("/chat");
+      }
     }).catch((e) => {
       console.log(e)
       navigate("/login");
@@ -62,6 +73,34 @@ function Banner() {
         <Link className="banner page-link" to="/types-vulnerabilities">Types of Vulnerabilities</Link>
         <Link className="banner page-link" to="/functionality">Functionality</Link>
         <Link className="banner page-link" to="/about">About</Link>
+
+        <div className="nav-right" ref={dropdownRef}>
+          <button 
+            onClick={() => setShowDropdown(!showDropdown)}
+            className="user-button"
+          >
+            <div className="user-icon">👤</div>
+            <span className="username">{username}</span>
+            <div className={`dropdown-arrow ${showDropdown ? 'rotated' : ''}`}>▼</div>
+          </button>
+          
+          {showDropdown && (
+            <div className="user-dropdown">
+              <div className="dropdown-item user-info">
+                <div className="user-icon-large">👤</div>
+                <div>
+                  <div className="dropdown-username">{username}</div>
+                  <div className="dropdown-email">Signed in</div>
+                </div>
+              </div>
+              <div className="dropdown-divider"></div>
+              <button onClick={handleLogout} className="dropdown-item logout-button">
+                <span className="logout-icon">🚪</span>
+                Sign Out
+              </button>
+            </div>
+          )}
+        </div>
       </div>
       <Outlet />
     </>
@@ -98,7 +137,7 @@ export async function fetchData(path, method, body=null) {
       console.error('Error fetching data: ', error.message);
       let toThrow;
       try {
-        toThrow = new Error(JSON.parse(error.message).message);
+        toThrow = new Error(JSON.parse(error.message).detail);
       } catch {
         throw error;
       }

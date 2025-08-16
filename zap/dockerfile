@@ -1,31 +1,5 @@
 FROM ghcr.io/zaproxy/zaproxy:stable
 
-USER root
-
-# Install useful debugging tools (optional)
-RUN apt-get update && apt-get install -y curl net-tools && rm -rf /var/lib/apt/lists/*
-
-# Create startup script
-RUN echo '#!/bin/bash' > /usr/local/bin/start.sh && \
-    echo 'set -e' >> /usr/local/bin/start.sh && \
-    echo 'echo "Starting ZAP on 0.0.0.0:8080..."' >> /usr/local/bin/start.sh && \
-    echo 'su zap -c "zap.sh -daemon -host 0.0.0.0 -port 8080 \\' >> /usr/local/bin/start.sh && \
-    echo '  -config api.key=aaef54aee7ea6b3df86e50f888a8d2c7 \\' >> /usr/local/bin/start.sh && \
-    echo '  -config hud.enabled=false \\' >> /usr/local/bin/start.sh && \
-    echo '  -config api.addrs.addr.name=.* \\' >> /usr/local/bin/start.sh && \
-    echo '  -config api.addrs.addr.regex=true \\' >> /usr/local/bin/start.sh && \
-    echo '  -config connection.followRedirect=false \\' >> /usr/local/bin/start.sh && \
-    echo '  -config connection.postFormRedirects=false \\' >> /usr/local/bin/start.sh && \
-    echo '  -config oast.service.callback.enabled=false \\' >> /usr/local/bin/start.sh && \
-    echo '  -config network.proxy.chain.enabled=false \\' >> /usr/local/bin/start.sh && \
-    echo '  -config network.connection.proxyChain.skipName=.* \\' >> /usr/local/bin/start.sh && \
-    echo '  -config api.disablekey=false \\' >> /usr/local/bin/start.sh && \
-    echo '  -config api.secure=false \\' >> /usr/local/bin/start.sh && \
-    echo '  -config api.forceSSL=false"' >> /usr/local/bin/start.sh
-
-RUN chmod +x /usr/local/bin/start.sh
-
-# Expose the port ZAP is listening on
 EXPOSE 8080
 
-CMD ["/usr/local/bin/start.sh"]
+CMD ["sh", "-c", "zap.sh -daemon -host 127.0.0.1 -port 8080 -config api.key=aaef54aee7ea6b3df86e50f888a8d2c7 -config hud.enabled=false -config api.addrs.addr.name=.* -config api.addrs.addr.regex=true -config connection.followRedirect=false -config connection.postFormRedirects=false -config oast.service.callback.enabled=false -config network.proxy.chain.enabled=false -config network.connection.proxyChain.skipName=.* -config api.disablekey=false -config api.secure=false -config api.nohttps=true -config network.connection.defaultUserAgent='ZAP' -config connection.dnsTtlSuccessfulQueries=0"]

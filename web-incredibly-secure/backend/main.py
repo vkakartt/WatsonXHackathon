@@ -1,12 +1,9 @@
-import asyncio
-import subprocess
-import os
 from fastapi import FastAPI, HTTPException, Depends, Request, Response, Cookie
 from fastapi.responses import JSONResponse
 import requests
 from fastapi.middleware.cors import CORSMiddleware
-from datetime import date, datetime, timedelta, timezone
-from typing import List, Annotated, Optional
+from datetime import timedelta
+from typing import Annotated, Optional
 
 from sqlalchemy import select
 import models
@@ -15,15 +12,12 @@ import database
 from database import engine, get_db
 from sqlalchemy.orm import Session
 from schemas import *
-import bcrypt
-import jwt
 from json import dumps
-from jwt.exceptions import InvalidTokenError
 from helpers import *
 
 app = FastAPI()
 origins = [
-    "*"
+    "http://localhost:3000"
 ]
 app.add_middleware(
     CORSMiddleware,
@@ -36,9 +30,6 @@ app.add_middleware(
 database.Base.metadata.create_all(bind=engine)
 
 db_dependency = Annotated[Session, Depends(get_db)]
-
-zap = None
-asyncio.create_task(start_zap())
 
 @app.get("/zap/{subpath:path}")
 async def zap_proxy(subpath: str, request: Request):
@@ -101,7 +92,7 @@ async def create_user(user: UserCreate, db: db_dependency):
     db_user = models.Users(
         username=user.username, 
         password=get_hashed_password(user.password),
-        tenant_ids=[]
+        thread_ids=[]
     )
     db.add(db_user)
     db.commit()
@@ -136,6 +127,12 @@ async def login(response: Response, user_credentials: UserLogin, db: db_dependen
     response.set_cookie(key="refresh_token", value=refresh_token, httponly=True, secure=False, samesite="lax")
     return {"message":"Logged in successfully"}
 
+@app.post("/logout")
+async def logout(response: Response):
+    response.delete_cookie(key="access_token");
+    response.delete_cookie(key="refresh_token");
+    return {"message":"Logged out successfully"}
+
 @app.post("/orchestrate/thread")
 async def create_thread(db: db_dependency):
     url = "/orchestrate/threads"
@@ -148,7 +145,7 @@ async def create_thread(db: db_dependency):
         print("test2")
         raise e
 
-@app.get("/orchestrate/thread")
+@app.get("/orchestrate/threads/{thread_id}")
 async def get_message_history(db: db_dependency, thread_id: str):
     url = f"/orchestrate/threads/{thread_id}/messages"
     headers = {"Content-Type": "application/json"}
@@ -160,15 +157,22 @@ async def get_message_history(db: db_dependency, thread_id: str):
     
     messages = []
     for message in response:
-        if message.content:
+        if type(message) == str:
+            raise HTTPException(500, message)
+        if message['content']:
             messages.append({
-                "role": message.role,
-                "message": message.content[0].text
+                "is_user": message['role']=='user',
+                "message": message['content'][0]['text'],
+                "timestamp": message['updated_at']
             })
     return messages
 
 @app.post("/orchestrate/message")
-async def send_message(db: db_dependency, message_info: MessageInfo):
+async def send_message(db: db_dependency, message_info: MessageInfo, response: Response, refresh_token: Optional[str] = Cookie(default=None), access_token: Optional[str] = Cookie(default=None)):
+    user_id = verify_cookie(response, access_token, refresh_token)
+    if not user_id:
+        raise HTTPException(401, "User session expired.")
+    
     url = "/orchestrate/runs"
     headers = {"Content-Type":"application/json"}
     params = {"multiple_content": False, "stream": False, "stream_timeout": 60000}
@@ -180,9 +184,16 @@ async def send_message(db: db_dependency, message_info: MessageInfo):
         "agent_id": "96adbe39-6327-4247-b102-6fbabd97a652",
         "thread_id": message_info.thread_id
     }
-    
     try:
         response = await makeApiCall(url, "POST", headers, params, payload)
+        print("testing")
+        if message_info.thread_id is None:
+            result = db.query(models.Users).filter(models.Users.id == user_id).first()
+            if not result:
+                raise HTTPException(404, "User does not exist.")
+            result.thread_ids = result.thread_ids + [response['thread_id']]
+            print(result.thread_ids)
+            db.commit()
     except Exception as e:
         raise e
     url += f"/{response['run_id']}"
