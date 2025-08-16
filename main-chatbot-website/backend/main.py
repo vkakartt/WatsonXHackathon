@@ -17,7 +17,8 @@ from helpers import *
 
 app = FastAPI()
 origins = [
-    "https://tt-watsonxhackathon-frontend-vdlh.onrender.com"
+    "https://tt-watsonxhackathon-frontend-vdlh.onrender.com",
+    "http://localhost:8000"
 ]
 app.add_middleware(
     CORSMiddleware,
