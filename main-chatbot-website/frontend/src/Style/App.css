@@ -58,7 +58,7 @@
   & .page-link {
     color: white;
     text-decoration: none;
-    margin-right: 13vw;
+    margin-right: 20vw;
     font-weight: 500;
     transition: color 0.2s;
 
@@ -72,7 +72,31 @@
   position: fixed;
   top: 10vh;
   left: 2vw;
-  width: 96vw
+  width: 96vw;
+  
+  &.static-box {
+    width: 70vw;
+    left: 15vw;
+  }
+}
+
+.centered {
+  height: auto;
+  max-width: 70%;
+}
+
+html,body{overflow-y: scroll; position: absolute}
+
+.static{
+
+  &.text {
+    align-items: center;
+    font-size: 1.5rem;
+  
+    &.left {
+      text-align: left;
+    }
+  }
 }
 
 

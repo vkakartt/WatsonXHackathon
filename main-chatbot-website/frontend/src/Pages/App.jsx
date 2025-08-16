@@ -19,7 +19,6 @@ function Routes() {
       children: [
         { path: "chat", element: <ChatBot />},
         { path: "about", element: <AboutPage />},
-        { path: "types-vulnerabilities", element: <TypesVulnerabilitiesPage />},
         { path: "functionality", element: <FunctionalityPage />},
         { path: "*", element: <NotFound />}
       ]
@@ -70,7 +69,6 @@ function Banner() {
       <div className="banner container">
         <img style={{marginRight:"7vw"}} src="https://www.transformatech.com/wp/wp-content/themes/infoway-transformatech/images/TransformaTech-Logo.jpg"/>
         <Link className="banner page-link" to="/chat">Chat Bot</Link>
-        <Link className="banner page-link" to="/types-vulnerabilities">Types of Vulnerabilities</Link>
         <Link className="banner page-link" to="/functionality">Functionality</Link>
         <Link className="banner page-link" to="/about">About</Link>
 
