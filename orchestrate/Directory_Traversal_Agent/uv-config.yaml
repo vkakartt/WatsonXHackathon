@@ -1,6 +1,6 @@
 spec_version: v1 
 kind: native 
-name: XSS_Agent 
+name: Directory_Traversal_Agent 
 description: >
     This agent is an expert in Directory Traversal and will perform extensive Directory Traversal vulnerability testing on a given website. It is capable of running these tests and also understanding the results, using its expertise to compile it all together in an understandable manner to be returned.
 instructions: >

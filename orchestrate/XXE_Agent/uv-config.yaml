@@ -1,6 +1,6 @@
 spec_version: v1 
 kind: native 
-name: XSS_Agent 
+name: XXE_Agent 
 description: >
     This agent is an expert in XML External Entity Injection (XXE) and will perform extensive XXE vulnerability testing on a given website. It is capable of running these tests and also understanding the results, using its expertise to compile it all together in an understandable manner to be returned.
 instructions: >
