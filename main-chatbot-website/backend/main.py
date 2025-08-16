@@ -124,8 +124,8 @@ async def login(response: Response, user_credentials: UserLogin, db: db_dependen
     
     access_token = create_access_token(user.id)
     refresh_token = create_access_token(user.id, timedelta(days=3))
-    response.set_cookie(key="access_token", value=access_token, httponly=True, secure=False, samesite="lax")
-    response.set_cookie(key="refresh_token", value=refresh_token, httponly=True, secure=False, samesite="lax")
+    response.set_cookie(key="access_token", value=access_token, httponly=True, secure=True, samesite="None")
+    response.set_cookie(key="refresh_token", value=refresh_token, httponly=True, secure=True, samesite="None")
     return {"message":"Logged in successfully"}
 
 @app.post("/logout")

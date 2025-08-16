@@ -82,7 +82,7 @@ async def login(response: Response, db: db_dependency, userdata: UserLogin):
         
         if user:
             access_token = create_access_token(user.id, timedelta(days=3))
-            response.set_cookie(key="access_token", value=access_token, httponly=False, secure=False, samesite="lax")
+            response.set_cookie(key="access_token", value=access_token, httponly=False, secure=True, samesite="None")
             return {"message": "Login successful"}
         else:
             raise HTTPException(400, "Invalid User Credentials.")
