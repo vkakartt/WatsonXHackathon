@@ -63,7 +63,7 @@ def start_env():
     print(env_dir)
     API_KEY = "TFQpwuwvqQiOcBceK3uwRr8kmaDfZ6dzV_6C9sklYY8o"
     ENV_NAME = "Not-Coding"
-    COMMAND = ["py","-m","orchestrate", "env", "activate", ENV_NAME, '--api-key', API_KEY]
+    COMMAND = ["python","-m","orchestrate", "env", "activate", ENV_NAME, '--api-key', API_KEY]
     
     # Start subprocess with pipes for stdin and stdout
     process = subprocess.Popen(
