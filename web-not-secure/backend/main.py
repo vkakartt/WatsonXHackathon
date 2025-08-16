@@ -18,7 +18,7 @@ import hashlib
 
 app = FastAPI()
 origins = [
-    "*"
+    "http://localhost:3000"
 ]
 app.add_middleware(
     CORSMiddleware,
@@ -38,64 +38,134 @@ ACCESS_TOKEN_EXPIRE_MINUTES = 30
 
 @app.post("/users")
 async def create_user(user: UserCreate, db: db_dependency):
-    # Check for existing email
-    if db.query(models.Users).filter(models.Users.email == user.email).first():
-        raise HTTPException(status_code=400, detail='Email already exists.')
-    
-    # Check for existing username
-    if db.query(models.Users).filter(models.Users.username == user.username).first():
+    # Check for existing username (raw SQL)
+    check_username_sql = f"SELECT 1 FROM users_unsecure WHERE username = '{user.username}' LIMIT 1"
+    result = db.connection().exec_driver_sql(check_username_sql)
+    if result.first():
         raise HTTPException(status_code=400, detail='Username is taken.')
-    
-    # Create user with auto-generated user_id
-    db_user = models.Users(
-        username=user.username, 
-        email=user.email, 
-        password=get_hashed_password(user.password)
-    )
-    db.add(db_user)
+
+    hashed_password = get_hashed_password(user.password)
+    # Insert new user (raw SQL)
+    insert_user_sql = f"""
+        INSERT INTO users_unsecure (username, password)
+        VALUES ('{user.username}', '{hashed_password}')
+        RETURNING user_id
+    """
+
+    result = db.connection().exec_driver_sql(insert_user_sql)
     db.commit()
-    db.refresh(db_user)  # This gets the auto-generated user_id
+
     return {"message": "Successfully created user"}
 
 @app.get("/users", response_model=UserResponse)
-async def get_user(user_id: int, db: db_dependency, response: Response, access_token: Optional[str] = Cookie(default=None), refresh_token: Optional[str] = Cookie(default=None)):
-    user_id = verify_cookie(response, access_token, refresh_token)
+async def get_user(db: db_dependency, response: Response, access_token: Optional[str] = Cookie(default=None)):
+    user_id = verify_cookie(response, access_token)
     if not user_id:
         raise HTTPException(status_code=401, detail='User authentication token Expired')
     
-    user = db.query(models.Users).filter(models.Users.id == user_id).first()
+    result = db.connection().exec_driver_sql(f"SELECT * FROM users_unsecure WHERE id = '{user_id}' LIMIT 1")
+    user = result.mappings().first()
     if not user:
         raise HTTPException(status_code=404, detail='User not found.')
-    return user
+    return {"id": user['id'], "username": user['username']}
 
 @app.post("/login")
-async def login(response: Response, db: db_dependency, username: str = Form(...), password: str = Form(...)):
-    # INTENTIONALLY VULNERABLE - DO NOT USE IN PRODUCTION
-    hashedPwd = get_hashed_password(password)
+async def login(response: Response, db: db_dependency, userdata: UserLogin):
+    hashedPwd = get_hashed_password(userdata.password)
     
     # Even more vulnerable - remove password hashing for easier testing
-    query = f"SELECT * FROM users WHERE username = '{username}' AND password = '{password}'"
-    print(f"Executing query: {query}")  # Debug output
+    query = f"SELECT * FROM users_unsecure WHERE username = '{userdata.username}' AND password = '{hashedPwd}'"
     
     try:
-        result = db.execute(text(query))
+        result = db.connection().exec_driver_sql(query)
         user = result.first()
         
         if user:
-            access_token = create_access_token(user.id)
-            refresh_token = create_access_token(user.id, timedelta(days=3))
+            access_token = create_access_token(user.id, timedelta(days=3))
             response.set_cookie(key="access_token", value=access_token, httponly=False, secure=False, samesite="lax")
-            response.set_cookie(key="refresh_token", value=refresh_token, httponly=False, secure=False, samesite="lax")
-            return {"message": "Login successful", "redirect": "http://localhost:3000/home"}
+            return {"message": "Login successful"}
         else:
-            raise HTTPException(400, "Invalid user credentials.")
+            raise HTTPException(400, "Invalid User Credentials.")
     except Exception as e:
         print(f"SQL Error: {e}")
         raise HTTPException(400, "Invalid User Credentials")
     
+@app.get("/tasks", response_model=List[TaskResponse])
+async def get_tasks(
+    db: db_dependency,
+    response: Response,
+    access_token: Optional[str] = Cookie(default=None)
+):
+    user_id = verify_cookie(response, access_token)
+    if not user_id:
+        raise HTTPException(401, "Unauthorized")
+
+    # Insecure raw SQL without text()
+    result = db.connection().exec_driver_sql(f"SELECT * FROM users_unsecure WHERE id = {user_id}")
+    user = result.fetchone()
+    if not user:
+        raise HTTPException(status_code=404, detail="User not found.")
+
+    # Get tasks for user
+    tasks_result = db.connection().exec_driver_sql(f"SELECT * FROM tasks_unsecure WHERE user_id = {user_id}")
+    tasks = tasks_result.fetchall()
+
+    # Map tasks to response model
+    return [
+        {"id": row.id, "text": row.text, "is_completed": row.is_completed}
+        for row in tasks
+    ]
+
+
+@app.post("/tasks")
+async def update_tasks(
+    db: db_dependency,
+    taskinfo: TaskUpdateInfo,
+    response: Response,
+    access_token: Optional[str] = Cookie(default=None)
+):
+    if taskinfo.id:
+        # Update existing task
+        if taskinfo.text is not None:
+            db.connection().exec_driver_sql(f"""
+                UPDATE tasks_unsecure 
+                SET text = '{taskinfo.text}' 
+                WHERE id = {taskinfo.id}
+            """)
+        if taskinfo.is_completed is not None:
+            db.connection().exec_driver_sql(f"""
+                UPDATE tasks_unsecure 
+                SET is_completed = {taskinfo.is_completed} 
+                WHERE id = {taskinfo.id}
+            """)
+        db.commit()
+    else:
+        # Create new task
+        user_id = verify_cookie(response, access_token)
+        if not taskinfo.text or not user_id:
+            raise HTTPException(404, "Error: Cannot create new task without text and user_id")
+
+        is_completed = taskinfo.is_completed is not None and taskinfo.is_completed
+
+        db.connection().exec_driver_sql(f"""
+            INSERT INTO tasks_unsecure (text, is_completed, user_id)
+            VALUES ('{taskinfo.text}', {is_completed}, {user_id})
+        """)
+        db.commit()
+        
+@app.post("/logout")
+async def logout(response: Response, access_token: Optional[str] = Cookie(default=None)):
+    response.delete_cookie(key="access_token")
+    return {"Success": "Logged out successfully."}
+    
+@app.delete("/tasks/{task_id}")
+async def delete_task(db: db_dependency, task_id: int):
+    db.connection().exec_driver_sql("DELETE FROM tasks_unsecure WHERE id = '" + str(task_id) + "';")
+    db.commit()
+    return {"Success": "Deleted message"}
+    
+    
 def get_hashed_password(plain_text_password):
-    # Hash a password for the first time
-    #   (Using bcrypt, the salt is saved into the hash itself)
     password_bytes = plain_text_password.encode('utf-8')
     return hashlib.sha256(password_bytes).hexdigest()
 
@@ -120,8 +190,8 @@ def decode_jwt(token: str):
     except:
         return None, False
 
-def verify_cookie(response: Response, access_token: Optional[str] = Cookie(default=None), refresh_token: Optional[str] = Cookie(default=None)):
-    if not access_token or not refresh_token:
+def verify_cookie(response: Response, access_token: Optional[str] = Cookie(default=None)):
+    if not access_token:
         return None
     
     # Try to decode access token first
@@ -129,15 +199,7 @@ def verify_cookie(response: Response, access_token: Optional[str] = Cookie(defau
     if success and result and "user_id" in result:
         return result["user_id"]
     
-    # If access token failed, try refresh token
-    refresh, refresh_success = decode_jwt(refresh_token)
-    if refresh_success and refresh and "user_id" in refresh:
-        # Create new access token using user_id from refresh token
-        new_access_token = create_access_token(refresh["user_id"])
-        response.set_cookie(key="access_token", value=new_access_token, httponly=True, secure=False, samesite="lax")
-        return refresh["user_id"]
-    
-    # Both tokens failed - clear cookies
+    # token failed - clear cookies
     response.delete_cookie(key="access_token")
-    response.delete_cookie(key="refresh_token")
     return None
+

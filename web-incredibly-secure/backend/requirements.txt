@@ -1,0 +1,13 @@
+fastapi
+uvicorn[standard]
+sqlalchemy
+sqlalchemy-utils
+psycopg2-binary
+bcrypt
+PyJWT
+requests
+python-dotenv
+pydantic
+aiofiles
+python-multipart
+httpx

@@ -1,0 +1,5 @@
+FROM ghcr.io/zaproxy/zaproxy:stable
+
+EXPOSE 8080
+
+CMD ["sh", "-c", "zap.sh -daemon -host 127.0.0.1 -port 8080 -config api.key=aaef54aee7ea6b3df86e50f888a8d2c7 -config hud.enabled=false -config api.addrs.addr.name=.* -config api.addrs.addr.regex=true -config connection.followRedirect=false -config connection.postFormRedirects=false -config oast.service.callback.enabled=false -config network.proxy.chain.enabled=false -config network.connection.proxyChain.skipName=.* -config api.disablekey=false -config api.secure=false -config api.nohttps=true -config network.connection.defaultUserAgent='ZAP' -config connection.dnsTtlSuccessfulQueries=0"]

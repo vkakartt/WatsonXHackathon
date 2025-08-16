@@ -11,7 +11,7 @@ class FastVulnScanner:
     def __init__(self, zap_port=8090, api_key="aaef54aee7ea6b3df86e50f888a8d2c7"):
         self.zap_port = zap_port
         self.api_key = api_key
-        self.zap_api_url = "https://kxhmqxrn-8000.use.devtunnels.ms/zap"
+        self.zap_api_url = "https://tt-watsonxhackathon-backend.onrender.com/zap"
         self.zap = None
         self.zap_process = None
 
@@ -231,4 +231,4 @@ def screen_for_xss(website_link: str) -> str:
     except Exception as e:
         return f"[!] XSS scan error: {e}"
 
-# print(fast_comprehensive_scan("https://www.transformatech.com",'xss'))
+print(fast_comprehensive_scan("https://www.transformatech.com",'xss'))
