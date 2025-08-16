@@ -4,3 +4,4 @@ sqlalchemy
 sqlalchemy-utils
 pydantic
 PyJWT
+psycopg2
