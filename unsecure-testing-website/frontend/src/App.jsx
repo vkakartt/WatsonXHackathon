@@ -2,7 +2,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import { BrowserRouter as Router, Routes, Route, useNavigate, Navigate, useLocation } from 'react-router-dom';
 import './App.css';
 
-const BACKEND_ADDRESS = 'http://localhost:8000';
+const BACKEND_ADDRESS = 'https://watsonxhackathon.onrender.com';
 
 export async function fetchData(path, method, body = null) {
   const requestOptions = {
